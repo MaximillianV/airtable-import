@@ -4,42 +4,47 @@ import '@testing-library/jest-dom';
 
 // Mock the Login component to avoid complex imports
 jest.mock('./Login', () => {
-  return function MockLogin() {
-    const [email, setEmail] = React.useState('');
-    const [password, setPassword] = React.useState('');
+  const mockReact = require('react');
+  
+  function MockLogin() {
+    const [email, setEmail] = mockReact.useState('');
+    const [password, setPassword] = mockReact.useState('');
     
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: any) => {
       e.preventDefault();
       // Mock login call
       console.log('Login attempted with:', email, password);
     };
     
-    return (
-      <form onSubmit={handleSubmit}>
-        <label>
-          Email:
-          <input 
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <label>
-          Password:
-          <input 
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <button type="submit">Login</button>
-        <a href="/register">Register</a>
-      </form>
+    return mockReact.createElement('form', { onSubmit: handleSubmit },
+      mockReact.createElement('label', null,
+        'Email:',
+        mockReact.createElement('input', {
+          type: 'email',
+          value: email,
+          onChange: (e: any) => setEmail(e.target.value)
+        })
+      ),
+      mockReact.createElement('label', null,
+        'Password:',
+        mockReact.createElement('input', {
+          type: 'password',
+          value: password,
+          onChange: (e: any) => setPassword(e.target.value)
+        })
+      ),
+      mockReact.createElement('button', { type: 'submit' }, 'Login'),
+      mockReact.createElement('a', { href: '/register' }, 'Register')
     );
+  }
+  
+  return {
+    __esModule: true,
+    default: MockLogin
   };
 });
 
-const Login = require('./Login').default;
+import Login from './Login';
 
 describe('Login Component', () => {
   test('renders login form', () => {
