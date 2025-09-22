@@ -35,6 +35,7 @@ jobs:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: |
+          package-lock.json
           backend/package-lock.json
           frontend/package-lock.json
 
@@ -54,6 +55,9 @@ jobs:
         
         # Wait a moment for cleanup
         sleep 2
+
+    - name: Install root dependencies
+      run: npm install
 
     - name: Install backend dependencies
       working-directory: ./backend
@@ -99,9 +103,6 @@ jobs:
     - name: Run backend tests
       working-directory: ./backend
       run: |
-        echo "Installing backend dependencies..."
-        npm ci
-        
         echo "Running backend unit tests with Jest..."
         npm test
         
@@ -174,6 +175,9 @@ jobs:
     - name: Run Playwright E2E tests
       run: |
         echo "Running Playwright end-to-end tests..."
+        
+        # Install Playwright browsers if not cached
+        npx playwright install --with-deps chromium
         
         # Run E2E tests with Playwright
         npx playwright test --reporter=html
