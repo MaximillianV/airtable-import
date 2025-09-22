@@ -68,3 +68,18 @@ export interface TableTestResult {
   message: string;
   error?: string;
 }
+
+export interface DiscoveredTable {
+  id: string;
+  name: string;
+  recordCount: number;
+  description?: string | null;
+  error?: string;
+}
+
+export interface DiscoverTablesResult {
+  success: boolean;
+  tables: DiscoveredTable[];
+  message: string;
+  error?: string;
+}

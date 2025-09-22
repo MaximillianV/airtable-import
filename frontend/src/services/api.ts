@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AuthResponse, Settings, ConnectionTestResult, ImportSession, TableTestResult } from '../types';
+import { AuthResponse, Settings, ConnectionTestResult, ImportSession, TableTestResult, DiscoverTablesResult, DiscoveredTable } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -65,8 +65,12 @@ export const settingsAPI = {
 };
 
 export const importAPI = {
-  start: async (tableNames: string[]) => {
-    const response = await api.post('/import/start', { tableNames });
+  start: async (tableNames: string[], tables?: DiscoveredTable[]) => {
+    const payload: any = { tableNames };
+    if (tables && tables.length > 0) {
+      payload.tables = tables;
+    }
+    const response = await api.post('/import/start', payload);
     return response.data;
   },
 
@@ -82,6 +86,11 @@ export const importAPI = {
 
   testTable: async (tableName: string): Promise<TableTestResult> => {
     const response = await api.post('/import/test-table', { tableName });
+    return response.data;
+  },
+
+  discoverTables: async (): Promise<DiscoverTablesResult> => {
+    const response = await api.get('/import/discover-tables');
     return response.data;
   },
 };

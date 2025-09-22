@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { settingsAPI, importAPI } from '../services/api';
-import { Settings, ImportSession, ImportProgress } from '../types';
+import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
 
 const Import: React.FC = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [tableNames, setTableNames] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [discovering, setDiscovering] = useState(false);
-  const [discoveredTables, setDiscoveredTables] = useState<string[]>([]);
+  const [discoveredTables, setDiscoveredTables] = useState<DiscoveredTable[]>([]);
   const [importing, setImporting] = useState(false);
   const [currentSession, setCurrentSession] = useState<ImportSession | null>(null);
   const [progress, setProgress] = useState<Record<string, ImportProgress>>({});
@@ -32,6 +31,14 @@ const Import: React.FC = () => {
     };
   }, []);
 
+  // Auto-discover tables when settings are loaded successfully
+  useEffect(() => {
+    if (settings && settings.airtableApiKey && settings.airtableBaseId && discoveredTables.length === 0 && !discovering) {
+      console.log('Auto-discovering tables with loaded settings...');
+      discoverTables();
+    }
+  }, [settings]);
+
   const loadSettings = async () => {
     try {
       const settingsData = await settingsAPI.get();
@@ -45,44 +52,74 @@ const Import: React.FC = () => {
     }
   };
 
+  /**
+   * Automatically discovers all tables in the Airtable base using the Metadata API.
+   * Fetches table information including names, IDs, and record counts.
+   * Replaces manual table entry with automatic discovery.
+   */
   const discoverTables = async () => {
-    if (!tableNames.trim()) {
-      setError('Please enter table names');
-      return;
-    }
-
     setDiscovering(true);
     setError('');
+    setDiscoveredTables([]);
+    setSelectedTables([]);
     
     try {
-      const tables = tableNames.split(',').map(name => name.trim()).filter(name => name);
-      const discoveryPromises = tables.map(async (tableName) => {
-        try {
-          const result = await importAPI.testTable(tableName);
-          return { tableName, accessible: result.accessible, recordCount: result.recordCount };
-        } catch (error) {
-          return { tableName, accessible: false, recordCount: 0 };
+      console.log('Starting automatic table discovery...');
+      const result = await importAPI.discoverTables();
+      
+      if (result.success && result.tables.length > 0) {
+        setDiscoveredTables(result.tables);
+        
+        // Pre-select all accessible tables (those without errors)
+        const accessibleTableNames = result.tables
+          .filter(table => table.recordCount >= 0 && !table.error)
+          .map(table => table.name);
+        setSelectedTables(accessibleTableNames);
+        
+        // Show summary message
+        const totalTables = result.tables.length;
+        const accessibleCount = accessibleTableNames.length;
+        
+        if (accessibleCount === totalTables) {
+          console.log(`✅ Successfully discovered ${totalTables} accessible tables`);
+        } else {
+          const errorMessage = `Found ${totalTables} tables, but only ${accessibleCount} are accessible. Check permissions for the others.`;
+          console.warn(errorMessage);
+          setError(errorMessage);
         }
-      });
-
-      const results = await Promise.all(discoveryPromises);
-      const accessibleTables = results.filter(r => r.accessible).map(r => r.tableName);
-      
-      setDiscoveredTables(accessibleTables);
-      setSelectedTables(accessibleTables); // Pre-select all accessible tables
-      
-      if (accessibleTables.length === 0) {
-        setError('No accessible tables found. Please check your table names and Airtable permissions.');
-      } else if (accessibleTables.length < tables.length) {
-        setError(`Found ${accessibleTables.length} out of ${tables.length} tables. Some tables may not be accessible.`);
+      } else {
+        setError(result.message || 'No tables found in your Airtable base');
       }
-    } catch (error) {
-      setError('Failed to discover tables. Please check your settings and table names.');
+    } catch (error: any) {
+      console.error('Table discovery failed:', error);
+      
+      // Provide specific error messages based on the error type
+      let errorMessage = 'Failed to discover tables. ';
+      
+      if (error.response?.status === 401) {
+        errorMessage += 'Invalid API key - please check your Airtable settings.';
+      } else if (error.response?.status === 403) {
+        errorMessage += 'Access denied - please verify your API key has the correct permissions.';
+      } else if (error.response?.status === 404) {
+        errorMessage += 'Base not found - please verify your Base ID is correct.';
+      } else if (error.response?.status >= 500) {
+        errorMessage += 'Server error - please try again in a moment.';
+      } else if (error.message?.includes('Network')) {
+        errorMessage += 'Network error - please check your internet connection.';
+      } else {
+        errorMessage += error.response?.data?.error || error.message || 'Please check your settings and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setDiscovering(false);
     }
   };
 
+  /**
+   * Starts the import process with selected tables.
+   * Sends enhanced table data including metadata for better tracking.
+   */
   const startImport = async () => {
     if (selectedTables.length === 0) {
       setError('Please select at least one table to import');
@@ -94,7 +131,16 @@ const Import: React.FC = () => {
     setProgress({});
 
     try {
-      const result = await importAPI.start(selectedTables);
+      // Prepare enhanced table data with metadata for import
+      const selectedTableObjects = discoveredTables.filter(table => 
+        selectedTables.includes(table.name)
+      );
+
+      console.log(`Starting import for ${selectedTableObjects.length} tables:`, 
+        selectedTableObjects.map(t => `${t.name} (${t.recordCount} records)`).join(', '));
+
+      // Send both formats for backward compatibility
+      const result = await importAPI.start(selectedTables, selectedTableObjects);
       setCurrentSession(result);
       
       // Connect to socket for real-time updates
@@ -166,32 +212,47 @@ const Import: React.FC = () => {
           <div style={styles.setupSection}>
             <div style={styles.card}>
               <h2>Discover Tables</h2>
-              <p>Enter the names of the Airtable tables you want to import, separated by commas.</p>
+              <p>Automatically discover all tables in your Airtable base with record counts.</p>
               
-              <div style={styles.field}>
-                <label style={styles.label}>Table Names</label>
-                <textarea
-                  value={tableNames}
-                  onChange={(e) => setTableNames(e.target.value)}
-                  placeholder="Table1, Table2, Table3..."
-                  style={styles.textarea}
-                  rows={3}
-                />
+              <div style={styles.discoveryActions}>
+                <button
+                  onClick={discoverTables}
+                  disabled={discovering}
+                  style={{
+                    ...styles.primaryButton,
+                    opacity: discovering ? 0.6 : 1,
+                    cursor: discovering ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {discovering ? 'Discovering Tables...' : 
+                   discoveredTables.length > 0 ? 'Refresh Tables' : 'Discover Tables'}
+                </button>
+                
+                {error && (
+                  <button
+                    onClick={discoverTables}
+                    disabled={discovering}
+                    style={{
+                      ...styles.secondaryButton,
+                      marginLeft: '8px',
+                      opacity: discovering ? 0.6 : 1,
+                      cursor: discovering ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Retry
+                  </button>
+                )}
               </div>
               
-              <button
-                onClick={discoverTables}
-                disabled={discovering || !tableNames.trim()}
-                style={{
-                  ...styles.primaryButton,
-                  opacity: (discovering || !tableNames.trim()) ? 0.6 : 1,
-                  cursor: (discovering || !tableNames.trim()) ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {discovering ? 'Discovering...' : 'Discover Tables'}
-              </button>
-              
-              {error && <div style={styles.error}>{error}</div>}
+              {error && (
+                <div style={styles.error}>
+                  {error}
+                  <div style={styles.errorHelp}>
+                    Need help? Check your <Link to="/settings" style={styles.errorLink}>settings</Link> or 
+                    verify your Airtable permissions.
+                  </div>
+                </div>
+              )}
             </div>
 
             {discoveredTables.length > 0 && (
@@ -199,16 +260,55 @@ const Import: React.FC = () => {
                 <h2>Select Tables to Import</h2>
                 <p>Choose which tables you want to import to your PostgreSQL database.</p>
                 
+                <div style={styles.bulkActions}>
+                  <button
+                    onClick={() => {
+                      const accessibleTables = discoveredTables
+                        .filter(table => table.recordCount >= 0 && !table.error)
+                        .map(table => table.name);
+                      setSelectedTables(accessibleTables);
+                    }}
+                    style={styles.secondaryButton}
+                  >
+                    Select All Accessible
+                  </button>
+                  <button
+                    onClick={() => setSelectedTables([])}
+                    style={styles.secondaryButton}
+                  >
+                    Deselect All
+                  </button>
+                </div>
+                
                 <div style={styles.tableList}>
-                  {discoveredTables.map((tableName) => (
-                    <label key={tableName} style={styles.tableOption}>
+                  {discoveredTables.map((table) => (
+                    <label key={table.id} style={styles.tableOption}>
                       <input
                         type="checkbox"
-                        checked={selectedTables.includes(tableName)}
-                        onChange={() => handleTableToggle(tableName)}
+                        checked={selectedTables.includes(table.name)}
+                        onChange={() => handleTableToggle(table.name)}
+                        disabled={table.recordCount < 0 || !!table.error}
                         style={styles.checkbox}
                       />
-                      <span style={styles.tableName}>{tableName}</span>
+                      <div style={styles.tableInfo}>
+                        <span style={styles.tableName}>{table.name}</span>
+                        <div style={styles.tableDetails}>
+                          {table.recordCount >= 0 ? (
+                            <span style={styles.recordCount}>
+                              {table.recordCount.toLocaleString()} records
+                            </span>
+                          ) : (
+                            <span style={styles.errorText}>
+                              {table.error || 'Unable to access'}
+                            </span>
+                          )}
+                          {table.description && (
+                            <span style={styles.tableDescription}>
+                              {table.description}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </label>
                   ))}
                 </div>
@@ -291,7 +391,7 @@ const Import: React.FC = () => {
                       setProgress({});
                       setDiscoveredTables([]);
                       setSelectedTables([]);
-                      setTableNames('');
+                      setError('');
                     }}
                     style={styles.secondaryButton}
                   >
@@ -499,6 +599,52 @@ const styles = {
     display: 'flex',
     gap: '12px',
     justifyContent: 'center',
+  },
+  bulkActions: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  tableInfo: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+    flex: 1,
+  },
+  tableDetails: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '2px',
+  },
+  recordCount: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  errorText: {
+    fontSize: '12px',
+    color: '#dc2626',
+    fontStyle: 'italic',
+  },
+  tableDescription: {
+    fontSize: '11px',
+    color: '#9ca3af',
+    fontStyle: 'italic',
+  },
+  discoveryActions: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '16px',
+  },
+  errorHelp: {
+    marginTop: '8px',
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  errorLink: {
+    color: '#3b82f6',
+    textDecoration: 'none',
+    fontWeight: '500',
   },
 };
 

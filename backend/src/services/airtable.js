@@ -26,21 +26,110 @@ class AirtableService {
     }
   }
 
-  async discoverTables() {
+  /**
+   * Discovers all tables in the Airtable base with their record counts.
+   * Uses the Airtable Metadata API to fetch table information and then
+   * queries each table to get accurate record counts.
+   * 
+   * @returns {Promise<Array>} Array of table objects with name, id, and recordCount
+   * @throws {Error} When API access fails or base is not accessible
+   */
+  async discoverTablesWithCounts() {
     if (!this.base) {
       throw new Error('Not connected to Airtable');
     }
 
     try {
-      // Since Airtable doesn't provide a direct API to list tables,
-      // we'll need to use the metadata API or try common table names
-      // For now, we'll return an empty array and let users specify table names
-      // In a production app, you'd use the Metadata API
+      console.log('Discovering tables using Airtable Metadata API...');
       
-      // This is a limitation - Airtable's JS library doesn't expose table discovery
-      // You would need to use the Metadata API separately
-      console.log('Table discovery would require Airtable Metadata API');
-      return [];
+      // Step 1: Get table metadata from Airtable Metadata API
+      const metadataUrl = `https://api.airtable.com/v0/meta/bases/${this.baseId}/tables`;
+      const response = await fetch(metadataUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid API key - authentication failed');
+      } else if (response.status === 403) {
+        throw new Error('Access denied - check API key permissions');
+      } else if (response.status === 404) {
+        throw new Error('Base not found - check Base ID');
+      } else if (!response.ok) {
+        throw new Error(`Metadata API error: ${response.status} ${response.statusText}`);
+      }
+
+      const metadata = await response.json();
+      
+      if (!metadata || !metadata.tables || !Array.isArray(metadata.tables)) {
+        throw new Error('Invalid response from Metadata API - no tables found');
+      }
+
+      console.log(`Found ${metadata.tables.length} tables in base`);
+
+      // Step 2: Get record counts for each table using the data API
+      const tablesWithCounts = [];
+      
+      for (const tableInfo of metadata.tables) {
+        try {
+          console.log(`Getting record count for table: ${tableInfo.name}`);
+          
+          // Use the airtable.js library to get record count
+          // We'll fetch just the first page to get the total count from offset
+          const page = await this.base(tableInfo.name).select({
+            maxRecords: 1, // Just get one record to minimize data transfer
+            pageSize: 1
+          }).firstPage();
+          
+          // Get the total count by making a separate request to count all records
+          let recordCount = 0;
+          await this.base(tableInfo.name).select().eachPage((records, fetchNextPage) => {
+            recordCount += records.length;
+            fetchNextPage();
+          });
+
+          tablesWithCounts.push({
+            id: tableInfo.id,
+            name: tableInfo.name,
+            recordCount: recordCount,
+            description: tableInfo.description || null
+          });
+
+          console.log(`Table "${tableInfo.name}": ${recordCount} records`);
+        } catch (tableError) {
+          console.warn(`Could not get record count for table "${tableInfo.name}":`, tableError.message);
+          
+          // Still include the table but with unknown record count
+          tablesWithCounts.push({
+            id: tableInfo.id,
+            name: tableInfo.name,
+            recordCount: -1, // -1 indicates unknown count
+            description: tableInfo.description || null,
+            error: tableError.message
+          });
+        }
+      }
+
+      console.log(`Successfully discovered ${tablesWithCounts.length} tables with record counts`);
+      return tablesWithCounts;
+    } catch (error) {
+      console.error('Error discovering tables with counts:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy method for backward compatibility.
+   * Now calls the enhanced discoverTablesWithCounts method.
+   * 
+   * @returns {Promise<Array>} Array of table names
+   */
+  async discoverTables() {
+    try {
+      const tablesWithCounts = await this.discoverTablesWithCounts();
+      return tablesWithCounts.map(table => table.name);
     } catch (error) {
       console.error('Error discovering tables:', error.message);
       throw error;

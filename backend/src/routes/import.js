@@ -27,15 +27,43 @@ initializeImportService();
 /**
  * Start import process endpoint
  * Creates import session in database and starts Airtable data import
+ * Accepts either legacy format (array of table names) or enhanced format (array of table objects)
  */
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    const { tableNames } = req.body;
+    const { tableNames, tables } = req.body;
     const userId = req.user.userId;
 
-    // Validate input parameters
-    if (!tableNames || !Array.isArray(tableNames) || tableNames.length === 0) {
-      return res.status(400).json({ error: 'Table names array is required' });
+    // Support both legacy format (tableNames array) and new format (tables array with metadata)
+    let tablesToImport = [];
+    let tableMetadata = {};
+
+    if (tables && Array.isArray(tables) && tables.length > 0) {
+      // New format: array of table objects with metadata
+      tablesToImport = tables.map(table => table.name || table);
+      tableMetadata = tables.reduce((acc, table) => {
+        if (typeof table === 'object' && table.name) {
+          acc[table.name] = {
+            id: table.id,
+            recordCount: table.recordCount,
+            description: table.description
+          };
+        }
+        return acc;
+      }, {});
+      console.log(`📊 Import starting with table metadata:`, Object.keys(tableMetadata).map(name => 
+        `${name} (${tableMetadata[name].recordCount} records)`).join(', '));
+    } else if (tableNames && Array.isArray(tableNames) && tableNames.length > 0) {
+      // Legacy format: array of table names
+      tablesToImport = tableNames;
+      console.log(`📋 Import starting with table names:`, tablesToImport.join(', '));
+    } else {
+      return res.status(400).json({ error: 'Table names array or tables array is required' });
+    }
+
+    // Validate we have tables to import
+    if (tablesToImport.length === 0) {
+      return res.status(400).json({ error: 'At least one table must be specified for import' });
     }
 
     // Get user settings from database
@@ -54,10 +82,10 @@ router.post('/start', authenticateToken, async (req, res) => {
     }
 
     // Create import session in database using Prisma
-    const importSession = await db.createImportSession(userId, tableNames);
+    const importSession = await db.createImportSession(userId, tablesToImport);
     const sessionId = importSession.id;
 
-    console.log(`✅ Import session created: ${sessionId} for user ${req.user.email}`);
+    console.log(`✅ Import session created: ${sessionId} for user ${req.user.email} with ${tablesToImport.length} tables`);
 
     // Start import process asynchronously
     (async () => {
@@ -73,7 +101,7 @@ router.post('/start', authenticateToken, async (req, res) => {
         await importService.connect(airtableApiKey, airtableBaseId, databaseUrl);
         
         // Import all tables and get results
-        const results = await importService.importMultipleTables(tableNames, sessionId);
+        const results = await importService.importMultipleTables(tablesToImport, sessionId);
         
         // Update session with completion status
         await db.updateImportSession(sessionId, {
@@ -196,6 +224,65 @@ router.get('/sessions', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('❌ Error listing import sessions:', error.message);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Discover tables endpoint
+ * Fetches all available tables from Airtable base with record counts
+ * Uses Metadata API for table discovery and data API for record counting
+ */
+router.get('/discover-tables', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    // Get user settings from database
+    const settings = await getUserSettings(userId);
+    if (!settings) {
+      return res.status(400).json({ error: 'Please configure your settings first' });
+    }
+
+    const { airtableApiKey, airtableBaseId } = settings;
+
+    // Validate required Airtable settings
+    if (!airtableApiKey || !airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for table discovery' 
+      });
+    }
+
+    // Create AirtableService instance
+    const AirtableService = require('../services/airtable');
+    const airtableService = new AirtableService();
+
+    // Connect to Airtable base
+    await airtableService.connect(airtableApiKey, airtableBaseId);
+
+    // Discover tables with record counts
+    console.log(`Discovering tables for user ${userId} in base ${airtableBaseId}...`);
+    const tablesWithCounts = await airtableService.discoverTablesWithCounts();
+
+    console.log(`✅ Successfully discovered ${tablesWithCounts.length} tables`);
+
+    // Return success response with table information
+    res.json({
+      success: true,
+      tables: tablesWithCounts,
+      message: `Found ${tablesWithCounts.length} table(s) in your Airtable base`
+    });
+
+  } catch (error) {
+    console.error('Error discovering tables:', error.message);
+    
+    // Return error response with appropriate status code
+    const statusCode = error.message.includes('authentication') ? 401 :
+                      error.message.includes('not found') ? 404 :
+                      error.message.includes('Access denied') ? 403 : 500;
+    
+    res.status(statusCode).json({ 
+      error: error.message,
+      success: false 
+    });
   }
 });
 
