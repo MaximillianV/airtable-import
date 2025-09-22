@@ -200,7 +200,7 @@ jobs:
         echo "Integration test .env file created:"
         cat .env
         echo "Testing PostgreSQL connection manually..."
-        psql -h localhost -p 5432 -U postgres -d airtable_import_test -c "SELECT 1;" || {
+        PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d airtable_import_test -c "SELECT 1;" || {
           echo "Failed to connect to PostgreSQL manually"
           exit 1
         }
