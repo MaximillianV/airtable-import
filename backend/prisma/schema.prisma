@@ -1,0 +1,110 @@
+// Prisma schema for Airtable Import Application
+// Manages users, import sessions, and dynamic imported data
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User management
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  settings       Settings?
+  importSessions ImportSession[]
+
+  @@map("users")
+}
+
+// User settings and Airtable configuration
+model Settings {
+  id              Int     @id @default(autoincrement())
+  userId          Int     @unique
+  airtableApiKey  String? // Encrypted
+  airtableBaseId  String?
+  databaseUrl     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+// Import session tracking
+model ImportSession {
+  id          String            @id @default(cuid())
+  userId      Int
+  status      ImportStatus      @default(PENDING)
+  startTime   DateTime          @default(now())
+  endTime     DateTime?
+  tableNames  String[]         // Array of table names being imported
+  totalTables Int              @default(0)
+  totalRecords Int             @default(0)
+  processedRecords Int         @default(0)
+  errorMessage String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importedTables ImportedTable[]
+
+  @@map("import_sessions")
+}
+
+// Track imported tables metadata
+model ImportedTable {
+  id              Int      @id @default(autoincrement())
+  sessionId       String
+  tableName       String
+  airtableTableId String?
+  recordCount     Int      @default(0)
+  status          ImportStatus @default(PENDING)
+  errorMessage    String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  session ImportSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, tableName])
+  @@map("imported_tables")
+}
+
+// Dynamic schema tracking for imported Airtable tables
+model AirtableSchema {
+  id          Int      @id @default(autoincrement())
+  tableName   String   @unique
+  baseId      String
+  airtableId  String
+  fields      Json     // Store field definitions as JSON
+  lastSync    DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("airtable_schemas")
+}
+
+// Enum definitions
+enum ImportStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}

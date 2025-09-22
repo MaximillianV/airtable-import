@@ -1,8 +1,12 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const DatabaseService = require('../services/database');
 
 const router = express.Router();
+
+// Initialize database service
+const db = new DatabaseService();
 
 // Ensure JWT_SECRET is available with fallback
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
@@ -16,43 +20,67 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
-// In-memory user storage (in production, use a proper database)
-const users = [
-  {
-    id: 1,
-    email: process.env.ADMIN_EMAIL || 'admin@example.com',
-    password: process.env.ADMIN_PASSWORD ? bcrypt.hashSync(process.env.ADMIN_PASSWORD, 10) : bcrypt.hashSync('admin123', 10)
+/**
+ * Initialize default admin user if it doesn't exist
+ * This ensures there's always at least one user to log in with
+ */
+async function initializeDefaultUser() {
+  try {
+    await db.connect();
+    
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    
+    // Check if admin user already exists
+    const existingUser = await db.findUserByEmail(adminEmail);
+    if (!existingUser) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      await db.createUser(adminEmail, hashedPassword);
+      console.log(`✅ Default admin user created: ${adminEmail}`);
+    } else {
+      console.log(`👤 Admin user already exists: ${adminEmail}`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize default user:', error.message);
   }
-];
+}
 
-// Login endpoint
+// Initialize default user on startup
+initializeDefaultUser();
+
+/**
+ * Login endpoint - authenticate user and return JWT token
+ * Uses Prisma database service for user lookup and password verification
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user
-    const user = users.find(u => u.email === email);
+    // Find user in database using Prisma
+    const user = await db.findUserByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check password
+    // Verify password against stored hash
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    // Generate JWT token with user information
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log(`✅ User logged in: ${email}`);
     res.json({
       token,
       user: {
@@ -61,45 +89,49 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Register endpoint (for demo purposes - in production, implement proper user management)
+/**
+ * Register endpoint - create new user account
+ * Uses Prisma database service for user creation with proper validation
+ */
 router.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
+    // Validate password strength (minimum requirements)
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if user already exists using Prisma
+    const existingUser = await db.findUserByEmail(email);
     if (existingUser) {
       return res.status(409).json({ error: 'User already exists' });
     }
 
-    // Hash password
+    // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
-    const newUser = {
-      id: users.length + 1,
-      email,
-      password: hashedPassword
-    };
+    // Create new user using Prisma
+    const newUser = await db.createUser(email, hashedPassword);
 
-    users.push(newUser);
-
-    // Generate JWT token
+    // Generate JWT token for immediate login
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log(`✅ New user registered: ${email}`);
     res.status(201).json({
       token,
       user: {
@@ -108,13 +140,22 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('❌ Registration error:', error.message);
+    
+    // Handle specific Prisma errors
+    if (error.message.includes('already exists')) {
+      return res.status(409).json({ error: 'User already exists' });
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Verify token endpoint
-router.get('/verify', (req, res) => {
+/**
+ * Verify token endpoint - validate JWT and return user information
+ * Uses Prisma database service to verify user still exists
+ */
+router.get('/verify', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -123,11 +164,13 @@ router.get('/verify', (req, res) => {
   }
 
   try {
+    // Decode and verify JWT token
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = users.find(u => u.id === decoded.userId);
     
+    // Verify user still exists in database using Prisma
+    const user = await db.findUserById(decoded.userId);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid token' });
+      return res.status(401).json({ error: 'Invalid token - user not found' });
     }
 
     res.json({
@@ -137,6 +180,15 @@ router.get('/verify', (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Token verification error:', error.message);
+    
+    // Handle specific JWT errors
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token format' });
+    }
+    
     res.status(401).json({ error: 'Invalid token' });
   }
 });
