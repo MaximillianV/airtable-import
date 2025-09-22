@@ -2,23 +2,26 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-// Mock the Login module directly without using React in the mock factory
-jest.mock('./Login', () => ({
-  default: function MockLogin() {
-    return React.createElement('div', {}, [
-      React.createElement('label', { key: 'email' }, [
-        'Email:',
-        React.createElement('input', { key: 'email-input', type: 'email' })
-      ]),
-      React.createElement('label', { key: 'password' }, [
-        'Password:',
-        React.createElement('input', { key: 'password-input', type: 'password' })
-      ]),
-      React.createElement('button', { key: 'submit', type: 'submit' }, 'Login'),
-      React.createElement('a', { key: 'register', href: '/register' }, 'Register')
-    ]);
-  }
-}));
+// Mock the Login module without using React in the factory
+jest.mock('./Login', () => {
+  const mockReact = jest.requireActual('react');
+  return {
+    default: function MockLogin() {
+      return mockReact.createElement('div', {}, [
+        mockReact.createElement('label', { key: 'email' }, [
+          'Email:',
+          mockReact.createElement('input', { key: 'email-input', type: 'email' })
+        ]),
+        mockReact.createElement('label', { key: 'password' }, [
+          'Password:',
+          mockReact.createElement('input', { key: 'password-input', type: 'password' })
+        ]),
+        mockReact.createElement('button', { key: 'submit', type: 'submit' }, 'Login'),
+        mockReact.createElement('a', { key: 'register', href: '/register' }, 'Register')
+      ]);
+    }
+  };
+});
 
 const Login = require('./Login').default;
 

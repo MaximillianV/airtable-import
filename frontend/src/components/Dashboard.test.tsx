@@ -2,18 +2,21 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-// Mock the Dashboard module directly
-jest.mock('./Dashboard', () => ({
-  default: function MockDashboard() {
-    return React.createElement('div', {}, [
-      React.createElement('h1', { key: 'title' }, 'Dashboard'),
-      React.createElement('p', { key: 'welcome' }, 'Welcome test@example.com'),
-      React.createElement('a', { key: 'settings', href: '/settings' }, 'Settings'),
-      React.createElement('a', { key: 'import', href: '/import' }, 'Import'),
-      React.createElement('button', { key: 'logout' }, 'Logout')
-    ]);
-  }
-}));
+// Mock the Dashboard module without using React in the factory
+jest.mock('./Dashboard', () => {
+  const mockReact = jest.requireActual('react');
+  return {
+    default: function MockDashboard() {
+      return mockReact.createElement('div', {}, [
+        mockReact.createElement('h1', { key: 'title' }, 'Dashboard'),
+        mockReact.createElement('p', { key: 'welcome' }, 'Welcome test@example.com'),
+        mockReact.createElement('a', { key: 'settings', href: '/settings' }, 'Settings'),
+        mockReact.createElement('a', { key: 'import', href: '/import' }, 'Import'),
+        mockReact.createElement('button', { key: 'logout' }, 'Logout')
+      ]);
+    }
+  };
+});
 
 const Dashboard = require('./Dashboard').default;
 
