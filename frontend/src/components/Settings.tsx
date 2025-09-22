@@ -182,8 +182,22 @@ const Settings: React.FC<SettingsProps> = ({ onSettingsSaved }) => {
                 }}>
                   {testResults.airtable.success ? '✓' : '✗'}
                 </span>
-                <span style={styles.testLabel}>Airtable:</span>
-                <span style={styles.testMessage}>{testResults.airtable.message}</span>
+                <div style={styles.testContent}>
+                  <div style={styles.testHeader}>
+                    <span style={styles.testLabel}>Airtable:</span>
+                    <span style={styles.testMessage}>{testResults.airtable.message}</span>
+                  </div>
+                  {testResults.airtable.details && testResults.airtable.success && (
+                    <div style={styles.testDetails}>
+                      {testResults.airtable.details.tablesFound !== undefined && (
+                        <div>Found {testResults.airtable.details.tablesFound} tables</div>
+                      )}
+                      {testResults.airtable.details.tableNames && testResults.airtable.details.tableNames.length > 0 && (
+                        <div>Tables: {testResults.airtable.details.tableNames.join(', ')}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div style={styles.testResult}>
@@ -193,8 +207,22 @@ const Settings: React.FC<SettingsProps> = ({ onSettingsSaved }) => {
                 }}>
                   {testResults.database.success ? '✓' : '✗'}
                 </span>
-                <span style={styles.testLabel}>Database:</span>
-                <span style={styles.testMessage}>{testResults.database.message}</span>
+                <div style={styles.testContent}>
+                  <div style={styles.testHeader}>
+                    <span style={styles.testLabel}>Database:</span>
+                    <span style={styles.testMessage}>{testResults.database.message}</span>
+                  </div>
+                  {testResults.database.details && testResults.database.success && (
+                    <div style={styles.testDetails}>
+                      {testResults.database.details.type && (
+                        <div>Type: {testResults.database.details.type}</div>
+                      )}
+                      {testResults.database.details.url && (
+                        <div>URL: {testResults.database.details.url}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -352,14 +380,26 @@ const styles = {
   },
   testResult: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '8px',
-    marginBottom: '8px',
+    marginBottom: '12px',
   },
   testStatus: {
     fontSize: '16px',
     fontWeight: 'bold',
     width: '20px',
+    marginTop: '2px',
+  },
+  testContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  testHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
   testLabel: {
     fontSize: '14px',
@@ -370,6 +410,12 @@ const styles = {
   testMessage: {
     fontSize: '14px',
     color: '#666',
+  },
+  testDetails: {
+    fontSize: '12px',
+    color: '#8b5cf6',
+    paddingLeft: '88px',
+    lineHeight: '1.4',
   },
 };
 

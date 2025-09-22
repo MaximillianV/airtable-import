@@ -18,10 +18,19 @@ export interface ConnectionTestResult {
   airtable: {
     success: boolean;
     message: string;
+    details?: {
+      tablesFound?: number;
+      tableNames?: string[];
+      message?: string;
+    };
   };
   database: {
     success: boolean;
     message: string;
+    details?: {
+      type?: string;
+      url?: string;
+    };
   };
 }
 
