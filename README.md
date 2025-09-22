@@ -62,7 +62,7 @@ NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=admin123
-DATABASE_URL=postgresql://username:password@localhost:5432/airtable_import
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import
 ```
 
 **Frontend** (`.env.local`):

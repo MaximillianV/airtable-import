@@ -24,6 +24,7 @@ cleanup_ports() {
 check_environment() {
     # Check if .env file exists, create from example if not
     if [ ! -f .env ]; then
+        echo "No .env file found, creating one..."
         if [ -f .env.example ]; then
             echo "Creating .env file from .env.example..."
             cp .env.example .env
@@ -46,10 +47,12 @@ NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=admin123
-DATABASE_URL=postgresql://username:password@localhost:5432/airtable_import
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import
 EOF
             fi
         fi
+    else
+        echo "Using existing .env file..."
     fi
     
     # Source the .env file
