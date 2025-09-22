@@ -3,7 +3,7 @@ import { ImportProgress } from '../types';
 
 class SocketService {
   private socket: Socket | null = null;
-  private progressCallbacks = new Map<string, (progress: ImportProgress) => void>();
+  private progressCallbacks = new Set<(progress: ImportProgress) => void>();
 
   connect() {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
@@ -42,7 +42,7 @@ class SocketService {
     this.progressCallbacks.clear();
   }
 
-  subscribeToProgress(sessionId: string, callback: (progress: ImportProgress) => void) {
+  joinSession(sessionId: string) {
     if (!this.socket) {
       console.error('Socket not connected');
       return;
@@ -54,19 +54,21 @@ class SocketService {
       return;
     }
 
-    // Register callback
-    this.progressCallbacks.set(sessionId, callback);
+    // Join the session room for progress updates
+    this.socket.emit('join-session', { sessionId, token });
 
-    // Subscribe to progress updates for this session
-    this.socket.emit('subscribe-progress', { sessionId, token });
-
-    this.socket.once('subscribed', ({ sessionId: subscribedSessionId }) => {
-      console.log('Subscribed to progress updates for session:', subscribedSessionId);
+    this.socket.once('joined-session', ({ sessionId: joinedSessionId }) => {
+      console.log('Joined session room:', joinedSessionId);
     });
   }
 
-  unsubscribeFromProgress(sessionId: string) {
-    this.progressCallbacks.delete(sessionId);
+  onProgressUpdate(callback: (progress: ImportProgress) => void) {
+    this.progressCallbacks.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      this.progressCallbacks.delete(callback);
+    };
   }
 
   isConnected(): boolean {
