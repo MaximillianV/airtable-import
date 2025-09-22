@@ -142,24 +142,78 @@ class ImportService {
   async testConnections(airtableApiKey, airtableBaseId, databaseUrl) {
     const results = {};
     
+    // Test Airtable connection
     try {
-      // Test Airtable connection
+      console.log('🔍 Testing Airtable connection...');
       const airtableService = new AirtableService();
       airtableService.connect(airtableApiKey, airtableBaseId);
-      await airtableService.testConnection();
-      results.airtable = { success: true, message: 'Airtable connection successful' };
+      const testResult = await airtableService.testConnection();
+      
+      results.airtable = { 
+        success: true, 
+        message: 'Airtable connection successful',
+        details: testResult
+      };
+      console.log('✅ Airtable connection test passed');
     } catch (error) {
-      results.airtable = { success: false, message: error.message };
+      console.log('❌ Airtable connection test failed:', error.message);
+      results.airtable = { 
+        success: false, 
+        message: error.message,
+        details: null
+      };
     }
 
+    // Test database connection using Prisma
     try {
-      // Test database connection
-      const dbService = new DatabaseService();
-      await dbService.connect(databaseUrl);
-      await dbService.disconnect();
-      results.database = { success: true, message: 'Database connection successful' };
+      console.log('🔍 Testing database connection...');
+      
+      // Create a temporary Prisma client with the provided database URL
+      const { PrismaClient } = require('@prisma/client');
+      const testClient = new PrismaClient({
+        datasources: {
+          db: {
+            url: databaseUrl
+          }
+        },
+        log: ['error'] // Only log errors for testing
+      });
+      
+      // Test the connection by attempting to connect
+      await testClient.$connect();
+      
+      // Try a simple query to verify the connection works
+      await testClient.$queryRaw`SELECT 1 as test`;
+      
+      // Clean up the test connection
+      await testClient.$disconnect();
+      
+      // Determine database type from URL
+      let dbType = 'unknown';
+      if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
+        dbType = 'postgresql';
+      } else if (databaseUrl.startsWith('mysql://')) {
+        dbType = 'mysql';
+      } else if (databaseUrl.startsWith('sqlite://') || databaseUrl.includes('.db')) {
+        dbType = 'sqlite';
+      }
+      
+      results.database = { 
+        success: true, 
+        message: 'Database connection successful',
+        details: {
+          type: dbType,
+          url: databaseUrl.replace(/\/\/[^@]+@/, '//***:***@') // Hide credentials
+        }
+      };
+      console.log('✅ Database connection test passed');
     } catch (error) {
-      results.database = { success: false, message: error.message };
+      console.log('❌ Database connection test failed:', error.message);
+      results.database = { 
+        success: false, 
+        message: error.message,
+        details: null
+      };
     }
 
     return results;

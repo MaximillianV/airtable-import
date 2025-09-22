@@ -1,4 +1,5 @@
 const Airtable = require('airtable');
+const fetch = require('node-fetch');
 
 class AirtableService {
   constructor() {
@@ -102,10 +103,49 @@ class AirtableService {
     }
 
     try {
-      // Try to make a simple request to test the connection
-      // Since we can't list tables, we'll just verify the base is accessible
-      return true;
+      // Test the connection by trying to access the base metadata
+      // We'll attempt to read from a likely table or just verify API access
+      
+      // Method 1: Try to make a basic API call to test credentials
+      const testUrl = `https://api.airtable.com/v0/meta/bases/${this.baseId}/tables`;
+      const response = await fetch(testUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid API key - authentication failed');
+      } else if (response.status === 403) {
+        throw new Error('Access denied - check API key permissions');
+      } else if (response.status === 404) {
+        throw new Error('Base not found - check Base ID');
+      } else if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Successful response should have tables array
+      if (data && data.tables && Array.isArray(data.tables)) {
+        return {
+          success: true,
+          tablesFound: data.tables.length,
+          tableNames: data.tables.map(table => table.name).slice(0, 5) // First 5 table names
+        };
+      } else {
+        // Fallback: just verify we got a valid response
+        return {
+          success: true,
+          message: 'Connection successful (basic verification)'
+        };
+      }
     } catch (error) {
+      // Handle network errors, invalid JSON, etc.
+      if (error.message.includes('fetch')) {
+        throw new Error('Network error - could not reach Airtable API');
+      }
       throw new Error(`Connection test failed: ${error.message}`);
     }
   }
