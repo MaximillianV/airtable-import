@@ -1,0 +1,249 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airtable_import_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+
+    - name: Kill processes on common ports
+      run: |
+        echo "Cleaning up ports before starting services..."
+        # Kill processes on common development ports
+        for port in 3000 3001 3002 8001 8080; do
+          echo "Checking port $port..."
+          if lsof -ti:$port >/dev/null 2>&1; then
+            echo "Killing processes on port $port..."
+            lsof -ti:$port | xargs kill -9 || true
+          else
+            echo "Port $port is free"
+          fi
+        done
+        
+        # Wait a moment for cleanup
+        sleep 2
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Setup backend environment
+      working-directory: ./backend
+      run: |
+        # Create .env file with required variables for testing
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=test
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=sqlite::memory:
+        EOF
+        
+        # Ensure proper .env file permissions
+        chmod 644 .env
+        
+        echo "Backend environment configured for testing"
+        echo "Using in-memory SQLite database for tests"
+
+    - name: Setup frontend environment
+      working-directory: ./frontend
+      run: |
+        # Create .env.local file for frontend
+        cat > .env.local << EOF
+        REACT_APP_API_URL=http://localhost:3001/api
+        REACT_APP_SOCKET_URL=http://localhost:3001
+        EOF
+        
+        # Ensure proper .env.local file permissions
+        chmod 644 .env.local
+        
+        echo "Frontend environment configured"
+
+    - name: Run backend tests
+      working-directory: ./backend
+      run: |
+        echo "Installing backend dependencies..."
+        npm ci
+        
+        echo "Running backend unit tests with Jest..."
+        npm test
+        
+        echo "Tests completed successfully!"
+
+    - name: Test backend server startup
+      working-directory: ./backend
+      run: |
+        echo "Testing backend server startup..."
+        
+        # Create .env file specifically for server testing (no database connection needed for health check)
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=development
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=sqlite::memory:
+        EOF
+        
+        # Ensure proper .env file permissions
+        chmod 644 .env
+        
+        echo "Starting backend server for health check..."
+        echo "DATABASE_URL from environment: $DATABASE_URL"
+        ls -la .env
+        echo "Contents of .env file:"
+        cat .env
+        
+        npm run start:safe &
+        BACKEND_PID=$!
+        
+        # Wait for server to start
+        echo "Waiting for backend to be ready..."
+        timeout 30s bash -c 'until curl -f http://localhost:3001/api/health >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Backend failed to start within 30 seconds"
+          kill $BACKEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        echo "Backend is ready!"
+        
+        # Test health endpoint
+        echo "Testing health endpoint..."
+        curl -f http://localhost:3001/api/health
+        
+        # Test authentication endpoint (this should work without database)
+        echo "Testing authentication..."
+        curl -X POST http://localhost:3001/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@example.com","password":"admin123"}' \
+          | head -c 100
+        
+        echo ""
+        echo "Backend server tests completed successfully!"
+        
+        # Stop backend
+        kill $BACKEND_PID 2>/dev/null || true
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run frontend tests
+      working-directory: ./frontend
+      run: |
+        # Run tests in non-interactive mode
+        CI=true npm test -- --coverage --watchAll=false
+
+    - name: Integration test
+      run: |
+        echo "Running integration test..."
+        
+        # Wait for PostgreSQL to be ready
+        echo "Waiting for PostgreSQL to be ready..."
+        timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres -d postgres; do sleep 1; done' || {
+          echo "PostgreSQL failed to start"
+          exit 1
+        }
+        echo "PostgreSQL is ready!"
+        
+        # Create production-like environment for integration test
+        cd backend
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=development
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
+        EOF
+        
+        # Ensure proper .env file permissions
+        chmod 644 .env
+        
+        echo "Integration test .env file created:"
+        cat .env
+        echo "Testing PostgreSQL connection manually..."
+        PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d airtable_import_test -c "SELECT 1;" || {
+          echo "Failed to connect to PostgreSQL manually"
+          exit 1
+        }
+        
+        # Start backend
+        npm run start:safe &
+        BACKEND_PID=$!
+        
+        # Start frontend
+        cd ../frontend && npm run start:safe &
+        FRONTEND_PID=$!
+        
+        # Wait for both services to start
+        echo "Waiting for services to be ready..."
+        timeout 60s bash -c 'until curl -f http://localhost:3001/api/health >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Backend failed to start"
+          kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        timeout 60s bash -c 'until curl -f http://localhost:3000 >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Frontend failed to start"
+          kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        echo "Both services are running successfully!"
+        
+        # Basic API test
+        curl -f http://localhost:3001/api/health
+        
+        # Cleanup
+        kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          frontend/build/
+          backend/package.json
+        retention-days: 7
+
+env:
+  # Set default JWT secret if not provided as secret
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}

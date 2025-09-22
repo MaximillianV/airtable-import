@@ -1,25 +1,51 @@
 const { Pool } = require('pg');
+const sqlite3 = require('sqlite3');
+const { promisify } = require('util');
 
 class DatabaseService {
   constructor() {
     this.pool = null;
+    this.sqlite = null;
+    this.isTestMode = process.env.NODE_ENV === 'test';
   }
 
   async connect(connectionString) {
     try {
-      this.pool = new Pool({
-        connectionString,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-      });
-      
-      // Test connection
-      await this.pool.query('SELECT NOW()');
-      console.log('Database connected successfully');
-      return true;
+      // Use SQLite for testing, PostgreSQL for production
+      if (this.isTestMode || connectionString === 'sqlite::memory:') {
+        return this.connectSQLite();
+      } else {
+        return this.connectPostgreSQL(connectionString);
+      }
     } catch (error) {
       console.error('Database connection error:', error.message);
       throw new Error(`Database connection failed: ${error.message}`);
     }
+  }
+
+  async connectPostgreSQL(connectionString) {
+    this.pool = new Pool({
+      connectionString,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    
+    // Test connection
+    await this.pool.query('SELECT NOW()');
+    console.log('PostgreSQL connected successfully');
+    return true;
+  }
+
+  async connectSQLite() {
+    return new Promise((resolve, reject) => {
+      this.sqlite = new sqlite3.Database(':memory:', (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          console.log('SQLite in-memory database connected successfully');
+          resolve(true);
+        }
+      });
+    });
   }
 
   async disconnect() {
@@ -27,10 +53,19 @@ class DatabaseService {
       await this.pool.end();
       this.pool = null;
     }
+    if (this.sqlite) {
+      return new Promise((resolve) => {
+        this.sqlite.close((err) => {
+          if (err) console.error('SQLite close error:', err);
+          this.sqlite = null;
+          resolve();
+        });
+      });
+    }
   }
 
   async createTableFromAirtableSchema(tableName, records) {
-    if (!this.pool) {
+    if (!this.pool && !this.sqlite) {
       throw new Error('Database not connected');
     }
 
@@ -45,27 +80,54 @@ class DatabaseService {
     // Create table SQL
     const sanitizedTableName = this.sanitizeTableName(tableName);
     const columnDefinitions = Object.entries(columns)
-      .map(([colName, colType]) => `"${this.sanitizeColumnName(colName)}" ${colType}`)
+      .map(([colName, colType]) => `"${this.sanitizeColumnName(colName)}" ${this.adaptColumnType(colType)}`)
       .join(', ');
 
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
+    const createTableSQL = this.sqlite ? 
+      // SQLite version
+      `CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        airtable_id TEXT UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        ${columnDefinitions}
+      )` :
+      // PostgreSQL version
+      `CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
         id SERIAL PRIMARY KEY,
         airtable_id VARCHAR(255) UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ${columnDefinitions}
-      )
-    `;
+      )`;
 
     try {
-      await this.pool.query(createTableSQL);
+      await this.query(createTableSQL);
       console.log(`Table ${sanitizedTableName} created successfully`);
       return sanitizedTableName;
     } catch (error) {
       console.error(`Error creating table ${sanitizedTableName}:`, error.message);
       throw error;
     }
+  }
+
+  adaptColumnType(pgType) {
+    if (!this.sqlite) return pgType; // Return PostgreSQL type as-is
+    
+    // Convert PostgreSQL types to SQLite equivalents
+    const typeMap = {
+      'SERIAL': 'INTEGER',
+      'VARCHAR(1000)': 'TEXT',
+      'VARCHAR(255)': 'TEXT',
+      'INTEGER': 'INTEGER',
+      'DECIMAL': 'REAL',
+      'BOOLEAN': 'INTEGER',
+      'TIMESTAMP': 'DATETIME',
+      'JSONB': 'TEXT',
+      'TEXT': 'TEXT'
+    };
+    
+    return typeMap[pgType] || 'TEXT';
   }
 
   inferColumnsFromRecords(records) {
@@ -127,7 +189,7 @@ class DatabaseService {
   }
 
   async insertRecords(tableName, records) {
-    if (!this.pool || !records || records.length === 0) {
+    if ((!this.pool && !this.sqlite) || !records || records.length === 0) {
       return 0;
     }
 
@@ -142,18 +204,22 @@ class DatabaseService {
 
         if (columns.length === 0) continue;
 
-        const placeholders = values.map((_, index) => `$${index + 2}`).join(', ');
+        const placeholders = this.sqlite ? 
+          values.map(() => '?').join(', ') : 
+          values.map((_, index) => `$${index + 2}`).join(', ');
         const columnNames = columns.map(col => `"${col}"`).join(', ');
 
-        const insertSQL = `
-          INSERT INTO "${sanitizedTableName}" (airtable_id, ${columnNames})
-          VALUES ($1, ${placeholders})
-          ON CONFLICT (airtable_id) DO UPDATE SET
-          ${columns.map((col, index) => `"${col}" = $${index + 2}`).join(', ')},
-          updated_at = CURRENT_TIMESTAMP
-        `;
+        const insertSQL = this.sqlite ?
+          // SQLite version with REPLACE
+          `REPLACE INTO "${sanitizedTableName}" (airtable_id, ${columnNames}) VALUES (?, ${placeholders})` :
+          // PostgreSQL version with ON CONFLICT
+          `INSERT INTO "${sanitizedTableName}" (airtable_id, ${columnNames})
+           VALUES ($1, ${placeholders})
+           ON CONFLICT (airtable_id) DO UPDATE SET
+           ${columns.map((col, index) => `"${col}" = $${index + 2}`).join(', ')},
+           updated_at = CURRENT_TIMESTAMP`;
 
-        await this.pool.query(insertSQL, [record.id, ...values]);
+        await this.query(insertSQL, [record.id, ...values]);
         insertedCount++;
       } catch (error) {
         console.error(`Error inserting record ${record.id}:`, error.message);
@@ -164,10 +230,29 @@ class DatabaseService {
   }
 
   async query(sql, params = []) {
-    if (!this.pool) {
+    if (this.sqlite) {
+      return this.querySQLite(sql, params);
+    } else if (this.pool) {
+      return this.pool.query(sql, params);
+    } else {
       throw new Error('Database not connected');
     }
-    return this.pool.query(sql, params);
+  }
+
+  async querySQLite(sql, params = []) {
+    return new Promise((resolve, reject) => {
+      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+        this.sqlite.all(sql, params, (err, rows) => {
+          if (err) reject(err);
+          else resolve({ rows });
+        });
+      } else {
+        this.sqlite.run(sql, params, function(err) {
+          if (err) reject(err);
+          else resolve({ rowCount: this.changes });
+        });
+      }
+    });
   }
 }
 
