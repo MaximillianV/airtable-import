@@ -122,6 +122,10 @@ jobs:
         echo "Contents of .env file:"
         cat .env
         
+        # Ensure the .env file is not overwritten by start-server.sh
+        echo "Setting .env file as read-only to prevent overwriting..."
+        chmod 444 .env
+        
         npm run start:safe &
         BACKEND_PID=$!
         
@@ -168,7 +172,7 @@ jobs:
         
         # Wait for PostgreSQL to be ready
         echo "Waiting for PostgreSQL to be ready..."
-        timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done' || {
+        timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres -d postgres; do sleep 1; done' || {
           echo "PostgreSQL failed to start"
           exit 1
         }
@@ -184,6 +188,14 @@ jobs:
         ADMIN_PASSWORD=admin123
         DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
         EOF
+        
+        echo "Integration test .env file created:"
+        cat .env
+        echo "Testing PostgreSQL connection manually..."
+        psql -h localhost -p 5432 -U postgres -d airtable_import_test -c "SELECT 1;" || {
+          echo "Failed to connect to PostgreSQL manually"
+          exit 1
+        }
         
         # Start backend
         npm run start:safe &
