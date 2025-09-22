@@ -66,18 +66,18 @@ jobs:
     - name: Setup backend environment
       working-directory: ./backend
       run: |
-        # Create .env file with required variables
+        # Create .env file with required variables for testing
         cat > .env << EOF
         PORT=3001
         NODE_ENV=test
         JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
         ADMIN_EMAIL=admin@example.com
         ADMIN_PASSWORD=admin123
-        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
+        DATABASE_URL=sqlite::memory:
         EOF
         
-        echo "Backend environment configured"
-        echo "Using JWT_SECRET: ${JWT_SECRET:0:20}..."
+        echo "Backend environment configured for testing"
+        echo "Using in-memory SQLite database for tests"
 
     - name: Setup frontend environment
       working-directory: ./frontend
@@ -93,8 +93,13 @@ jobs:
     - name: Run backend tests
       working-directory: ./backend
       run: |
-        # Start backend in background for testing
-        echo "Starting backend server for testing..."
+        echo "Installing backend dependencies..."
+        npm ci
+        
+        echo "Running backend tests with Jest..."
+        npm test
+        
+        echo "Starting backend server for integration testing..."
         npm run start:safe &
         BACKEND_PID=$!
         
@@ -108,13 +113,16 @@ jobs:
         
         echo "Backend is ready!"
         
-        # Run tests if they exist
-        if [ -f "package.json" ] && grep -q '"test"' package.json && ! grep -q 'no test specified' package.json; then
-          npm test
-        else
-          echo "No backend tests defined, checking health endpoint..."
-          curl -f http://localhost:3001/api/health
-        fi
+        # Test health endpoint
+        echo "Testing health endpoint..."
+        curl -f http://localhost:3001/api/health
+        
+        # Test authentication endpoint
+        echo "Testing authentication..."
+        curl -X POST http://localhost:3001/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"admin@example.com","password":"admin123"}' \
+          | head -c 100
         
         # Stop backend
         kill $BACKEND_PID 2>/dev/null || true
@@ -133,12 +141,23 @@ jobs:
       run: |
         echo "Running integration test..."
         
+        # Create production-like environment for integration test
+        cd backend
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=development
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
+        EOF
+        
         # Start backend
-        cd backend && npm run start:safe &
+        npm run start:safe &
         BACKEND_PID=$!
         
         # Start frontend
-        cd frontend && npm run start:safe &
+        cd ../frontend && npm run start:safe &
         FRONTEND_PID=$!
         
         # Wait for both services to start
