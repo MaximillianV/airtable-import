@@ -166,6 +166,14 @@ jobs:
       run: |
         echo "Running integration test..."
         
+        # Wait for PostgreSQL to be ready
+        echo "Waiting for PostgreSQL to be ready..."
+        timeout 30s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done' || {
+          echo "PostgreSQL failed to start"
+          exit 1
+        }
+        echo "PostgreSQL is ready!"
+        
         # Create production-like environment for integration test
         cd backend
         cat > .env << EOF
