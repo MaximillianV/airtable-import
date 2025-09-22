@@ -4,6 +4,18 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
+// Ensure JWT_SECRET is available with fallback
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('WARNING: JWT_SECRET not set in environment variables. Using default secret for development only.');
+  return 'default-dev-secret-change-this-in-production';
+})();
+
+// Validate JWT_SECRET on startup
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('FATAL: JWT_SECRET must be set in production environment');
+  process.exit(1);
+}
+
 // In-memory user storage (in production, use a proper database)
 const users = [
   {
@@ -37,7 +49,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -84,7 +96,7 @@ router.post('/register', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -111,7 +123,7 @@ router.get('/verify', (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const user = users.find(u => u.id === decoded.userId);
     
     if (!user) {

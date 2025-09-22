@@ -1,0 +1,177 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airtable_import_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+
+    - name: Kill processes on common ports
+      run: |
+        echo "Cleaning up ports before starting services..."
+        # Kill processes on common development ports
+        for port in 3000 3001 3002 8001 8080; do
+          echo "Checking port $port..."
+          if lsof -ti:$port >/dev/null 2>&1; then
+            echo "Killing processes on port $port..."
+            lsof -ti:$port | xargs kill -9 || true
+          else
+            echo "Port $port is free"
+          fi
+        done
+        
+        # Wait a moment for cleanup
+        sleep 2
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Setup backend environment
+      working-directory: ./backend
+      run: |
+        # Create .env file with required variables
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=test
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
+        EOF
+        
+        echo "Backend environment configured"
+        echo "Using JWT_SECRET: ${JWT_SECRET:0:20}..."
+
+    - name: Setup frontend environment
+      working-directory: ./frontend
+      run: |
+        # Create .env.local file for frontend
+        cat > .env.local << EOF
+        REACT_APP_API_URL=http://localhost:3001/api
+        REACT_APP_SOCKET_URL=http://localhost:3001
+        EOF
+        
+        echo "Frontend environment configured"
+
+    - name: Run backend tests
+      working-directory: ./backend
+      run: |
+        # Start backend in background for testing
+        echo "Starting backend server for testing..."
+        npm run start:safe &
+        BACKEND_PID=$!
+        
+        # Wait for server to start
+        echo "Waiting for backend to be ready..."
+        timeout 30s bash -c 'until curl -f http://localhost:3001/api/health >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Backend failed to start within 30 seconds"
+          kill $BACKEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        echo "Backend is ready!"
+        
+        # Run tests if they exist
+        if [ -f "package.json" ] && grep -q '"test"' package.json && ! grep -q 'no test specified' package.json; then
+          npm test
+        else
+          echo "No backend tests defined, checking health endpoint..."
+          curl -f http://localhost:3001/api/health
+        fi
+        
+        # Stop backend
+        kill $BACKEND_PID 2>/dev/null || true
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run frontend tests
+      working-directory: ./frontend
+      run: |
+        # Run tests in non-interactive mode
+        CI=true npm test -- --coverage --watchAll=false
+
+    - name: Integration test
+      run: |
+        echo "Running integration test..."
+        
+        # Start backend
+        cd backend && npm run start:safe &
+        BACKEND_PID=$!
+        
+        # Start frontend
+        cd frontend && npm run start:safe &
+        FRONTEND_PID=$!
+        
+        # Wait for both services to start
+        echo "Waiting for services to be ready..."
+        timeout 60s bash -c 'until curl -f http://localhost:3001/api/health >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Backend failed to start"
+          kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        timeout 60s bash -c 'until curl -f http://localhost:3000 >/dev/null 2>&1; do sleep 1; done' || {
+          echo "Frontend failed to start"
+          kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        }
+        
+        echo "Both services are running successfully!"
+        
+        # Basic API test
+        curl -f http://localhost:3001/api/health
+        
+        # Cleanup
+        kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          frontend/build/
+          backend/package.json
+        retention-days: 7
+
+env:
+  # Set default JWT secret if not provided as secret
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
