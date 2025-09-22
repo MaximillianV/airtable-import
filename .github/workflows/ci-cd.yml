@@ -76,6 +76,9 @@ jobs:
         DATABASE_URL=sqlite::memory:
         EOF
         
+        # Ensure proper .env file permissions
+        chmod 644 .env
+        
         echo "Backend environment configured for testing"
         echo "Using in-memory SQLite database for tests"
 
@@ -87,6 +90,9 @@ jobs:
         REACT_APP_API_URL=http://localhost:3001/api
         REACT_APP_SOCKET_URL=http://localhost:3001
         EOF
+        
+        # Ensure proper .env.local file permissions
+        chmod 644 .env.local
         
         echo "Frontend environment configured"
 
@@ -116,15 +122,14 @@ jobs:
         DATABASE_URL=sqlite::memory:
         EOF
         
+        # Ensure proper .env file permissions
+        chmod 644 .env
+        
         echo "Starting backend server for health check..."
         echo "DATABASE_URL from environment: $DATABASE_URL"
         ls -la .env
         echo "Contents of .env file:"
         cat .env
-        
-        # Ensure the .env file is not overwritten by start-server.sh
-        echo "Setting .env file as read-only to prevent overwriting..."
-        chmod 444 .env
         
         npm run start:safe &
         BACKEND_PID=$!
@@ -188,6 +193,9 @@ jobs:
         ADMIN_PASSWORD=admin123
         DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
         EOF
+        
+        # Ensure proper .env file permissions
+        chmod 644 .env
         
         echo "Integration test .env file created:"
         cat .env
