@@ -96,10 +96,32 @@ jobs:
         echo "Installing backend dependencies..."
         npm ci
         
-        echo "Running backend tests with Jest..."
+        echo "Running backend unit tests with Jest..."
         npm test
         
-        echo "Starting backend server for integration testing..."
+        echo "Tests completed successfully!"
+
+    - name: Test backend server startup
+      working-directory: ./backend
+      run: |
+        echo "Testing backend server startup..."
+        
+        # Create .env file specifically for server testing (no database connection needed for health check)
+        cat > .env << EOF
+        PORT=3001
+        NODE_ENV=development
+        JWT_SECRET=${{ secrets.JWT_SECRET || 'test-jwt-secret-for-ci-cd-pipeline-do-not-use-in-production' }}
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=sqlite::memory:
+        EOF
+        
+        echo "Starting backend server for health check..."
+        echo "DATABASE_URL from environment: $DATABASE_URL"
+        ls -la .env
+        echo "Contents of .env file:"
+        cat .env
+        
         npm run start:safe &
         BACKEND_PID=$!
         
@@ -117,12 +139,15 @@ jobs:
         echo "Testing health endpoint..."
         curl -f http://localhost:3001/api/health
         
-        # Test authentication endpoint
+        # Test authentication endpoint (this should work without database)
         echo "Testing authentication..."
         curl -X POST http://localhost:3001/api/auth/login \
           -H "Content-Type: application/json" \
           -d '{"email":"admin@example.com","password":"admin123"}' \
           | head -c 100
+        
+        echo ""
+        echo "Backend server tests completed successfully!"
         
         # Stop backend
         kill $BACKEND_PID 2>/dev/null || true
