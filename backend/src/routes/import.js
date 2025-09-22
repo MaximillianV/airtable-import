@@ -194,28 +194,37 @@ function setupSocketIO(io) {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    socket.on('subscribe-progress', ({ sessionId, token }) => {
+    socket.on('join-session', ({ sessionId, token }) => {
       // Verify JWT token
       try {
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const JWT_SECRET = process.env.JWT_SECRET || 'default-dev-secret-change-this-in-production';
+        const decoded = jwt.verify(token, JWT_SECRET);
         
         const session = activeSessions.get(sessionId);
         if (session && session.userId === decoded.userId) {
           socket.join(`progress-${sessionId}`);
           
           // Setup progress callback for this session
-          session.importService.addProgressCallback(sessionId, (data) => {
-            io.to(`progress-${sessionId}`).emit('import-progress', data);
-          });
+          if (session.importService && session.importService.addProgressCallback) {
+            session.importService.addProgressCallback(sessionId, (data) => {
+              io.to(`progress-${sessionId}`).emit('import-progress', data);
+            });
+          }
           
-          socket.emit('subscribed', { sessionId });
+          socket.emit('joined-session', { sessionId });
         } else {
           socket.emit('error', { message: 'Session not found or access denied' });
         }
       } catch (error) {
         socket.emit('error', { message: 'Invalid token' });
       }
+    });
+
+    // Legacy support for old subscribe-progress event
+    socket.on('subscribe-progress', ({ sessionId, token }) => {
+      // Redirect to join-session
+      socket.emit('join-session', { sessionId, token });
     });
 
     socket.on('disconnect', () => {
