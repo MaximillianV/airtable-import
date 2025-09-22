@@ -1,0 +1,30 @@
+{
+  "name": "airtable-import",
+  "version": "1.0.0",
+  "description": "Full-stack application for importing Airtable bases to PostgreSQL",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "start": "npm run start:backend & npm run start:frontend",
+    "start:backend": "cd backend && npm run start:safe",
+    "start:frontend": "cd frontend && npm run start:safe",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && CI=true npm test -- --coverage --watchAll=false",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.2"
+  },
+  "author": "",
+  "license": "ISC"
+}

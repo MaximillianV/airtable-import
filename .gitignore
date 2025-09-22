@@ -1,0 +1,12 @@
+tests/e2e/
+node_modules/
+.git/
+coverage/
+build/
+dist/
+*.log
+.env
+.env.local
+*.pid
+playwright-report/
+test-results/
