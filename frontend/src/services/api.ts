@@ -17,14 +17,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 responses
+// Handle 401 responses - only redirect for JWT authentication failures, not Airtable API failures
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect to login for JWT authentication failures from our backend
+      // Check if this is a JWT authentication error vs an Airtable API error
+      const errorMessage = error.response?.data?.error || '';
+      
+      // JWT authentication errors from our backend middleware
+      const isJWTError = errorMessage.includes('No token provided') || 
+                        errorMessage.includes('Access denied') || 
+                        errorMessage.includes('Invalid token');
+      
+      // Airtable API errors should not trigger login redirect
+      const isAirtableError = errorMessage.includes('Invalid API key') ||
+                             errorMessage.includes('Base not found') ||
+                             errorMessage.includes('Access denied - check API key');
+      
+      if (isJWTError && !isAirtableError) {
+        console.log('JWT authentication failed, redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        // This is likely an Airtable API error or other service error, don't redirect
+        console.log('Non-JWT 401 error (likely external API):', errorMessage);
+      }
     }
     return Promise.reject(error);
   }
