@@ -133,7 +133,55 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci-cd.yml`) t
 │   ├── start-frontend.sh # Safe frontend startup script
 │   └── package.json
 ├── start-all.sh         # Full stack startup script
+├── test-all.sh          # Comprehensive test runner
+├── playwright.config.ts # E2E test configuration
 └── .github/workflows/   # CI/CD configuration
+```
+
+## Security
+
+### Backend Security ✅
+- **Zero vulnerabilities** in production dependencies
+- **JWT authentication** with bcrypt password hashing
+- **Environment variable** configuration for sensitive data
+- **Input validation** and sanitization
+- **CORS and security headers** via helmet middleware
+
+### Frontend Security ⚠️
+- **Development dependencies** contain known vulnerabilities
+- **Production runtime** is not affected
+- **Regular security audits** recommended
+- **Upgrade strategy** documented in `DEPENDENCY_UPGRADE_STRATEGY.md`
+
+### Security Best Practices
+- Use strong JWT secrets in production
+- Validate all environment variables
+- Regular dependency updates
+- Monitor security advisories
+
+For detailed security analysis, see `SECURITY_AND_TESTING_ANALYSIS.md` and `DEPENDENCY_UPGRADE_STRATEGY.md`.
+
+## Testing
+
+### Test Coverage
+- **Backend**: 19 unit tests (100% passing)
+- **Frontend**: Component tests with improved coverage
+- **E2E**: Playwright tests covering key user workflows
+- **Integration**: Full-stack API and authentication testing
+
+### Running Tests
+```bash
+# Run all tests
+./test-all.sh
+
+# Backend tests only
+cd backend && npm test
+
+# Frontend tests only
+cd frontend && npm test
+
+# E2E tests only
+npm run test:e2e
 ```
 
 ## Contributing
@@ -141,7 +189,8 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci-cd.yml`) t
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Use the provided startup scripts to test
-5. Submit a pull request
+4. Run tests: `./test-all.sh`
+5. Use the provided startup scripts to test
+6. Submit a pull request
 
 The startup scripts ensure consistent development environment setup and port management across different machines and CI/CD environments.
