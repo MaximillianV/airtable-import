@@ -2,20 +2,18 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-// Mock the entire Dashboard component to avoid axios imports
-jest.mock('./Dashboard', () => {
-  return function MockDashboard() {
-    return (
-      <div>
-        <h1>Dashboard</h1>
-        <p>Welcome test@example.com</p>
-        <a href="/settings">Settings</a>
-        <a href="/import">Import</a>
-        <button>Logout</button>
-      </div>
-    );
-  };
-});
+// Mock the Dashboard module directly
+jest.mock('./Dashboard', () => ({
+  default: function MockDashboard() {
+    return React.createElement('div', {}, [
+      React.createElement('h1', { key: 'title' }, 'Dashboard'),
+      React.createElement('p', { key: 'welcome' }, 'Welcome test@example.com'),
+      React.createElement('a', { key: 'settings', href: '/settings' }, 'Settings'),
+      React.createElement('a', { key: 'import', href: '/import' }, 'Import'),
+      React.createElement('button', { key: 'logout' }, 'Logout')
+    ]);
+  }
+}));
 
 const Dashboard = require('./Dashboard').default;
 
