@@ -13,9 +13,24 @@ A full-stack application for importing Airtable bases into PostgreSQL databases.
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- PostgreSQL database
+- Node.js (v18 or higher, v20 recommended)
+- PostgreSQL database (v13 or higher)
 - Airtable API key and base ID
+
+### Current Dependencies
+
+**Backend:**
+- pg: ^8.11.3 (PostgreSQL client)
+- supertest: ^6.3.3 (API testing)
+- jest: ^30.1.3 (Testing framework)
+- Node.js LTS for optimal performance
+
+**Frontend:**
+- React: ^19.1.1
+- TypeScript: ^4.9.5
+- react-scripts: 5.0.1 (includes build tools and linting)
+
+**Note**: Some dependency updates are pending major version upgrades. See `DEPRECATION_WARNINGS.md` for details on planned updates and timeline.
 
 ### Installation and Startup
 
@@ -143,5 +158,7 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci-cd.yml`) t
 3. Make your changes
 4. Use the provided startup scripts to test
 5. Submit a pull request
+
+See `DEVELOPMENT_SETUP.md` for detailed development environment configuration and `DEPRECATION_WARNINGS.md` for information about planned dependency updates.
 
 The startup scripts ensure consistent development environment setup and port management across different machines and CI/CD environments.
