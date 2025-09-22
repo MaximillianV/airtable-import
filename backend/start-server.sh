@@ -29,7 +29,18 @@ check_environment() {
             cp .env.example .env
         else
             echo "Creating basic .env file..."
-            cat > .env << EOF
+            # Use SQLite for test environment, PostgreSQL otherwise
+            if [ "${NODE_ENV}" = "test" ]; then
+                cat > .env << EOF
+PORT=3001
+NODE_ENV=test
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=admin123
+DATABASE_URL=sqlite::memory:
+EOF
+            else
+                cat > .env << EOF
 PORT=3001
 NODE_ENV=development
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -37,6 +48,7 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=admin123
 DATABASE_URL=postgresql://username:password@localhost:5432/airtable_import
 EOF
+            fi
         fi
     fi
     
