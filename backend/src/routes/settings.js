@@ -55,20 +55,22 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { airtableApiKey, airtableBaseId, databaseUrl } = req.body;
 
-    // Validate required fields
-    if (!airtableApiKey || !airtableBaseId || !databaseUrl) {
+    // Validate required fields (databaseUrl is optional)
+    if (!airtableApiKey || !airtableBaseId) {
       return res.status(400).json({ 
-        error: 'Airtable API key, base ID, and database URL are required' 
+        error: 'Airtable API key and base ID are required' 
       });
     }
 
-    // Validate URL format
-    try {
-      new URL(databaseUrl);
-    } catch (urlError) {
-      return res.status(400).json({ 
-        error: 'Invalid database URL format' 
-      });
+    // Validate URL format if provided
+    if (databaseUrl && databaseUrl.trim() !== '') {
+      try {
+        new URL(databaseUrl);
+      } catch (urlError) {
+        return res.status(400).json({ 
+          error: 'Invalid database URL format' 
+        });
+      }
     }
 
     // Save settings using Prisma
