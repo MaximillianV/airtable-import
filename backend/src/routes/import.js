@@ -74,10 +74,10 @@ router.post('/start', authenticateToken, async (req, res) => {
 
     const { airtableApiKey, airtableBaseId, databaseUrl } = settings;
 
-    // Validate required settings
-    if (!airtableApiKey || !airtableBaseId || !databaseUrl) {
+    // Validate required settings (databaseUrl is optional, defaults to SQLite)
+    if (!airtableApiKey || !airtableBaseId) {
       return res.status(400).json({ 
-        error: 'Missing required settings: Airtable API key, base ID, or database URL' 
+        error: 'Missing required settings: Airtable API key or base ID' 
       });
     }
 
@@ -92,23 +92,37 @@ router.post('/start', authenticateToken, async (req, res) => {
       try {
         // Update session status to running
         await db.updateImportSession(sessionId, { 
-          status: 'RUNNING',
-          startedAt: new Date()
+          status: 'RUNNING'
         });
 
         // Create and configure import service
         const importService = new ImportService();
+        
+        console.log(`🔍 Import service connection parameters:`, {
+          hasApiKey: !!airtableApiKey,
+          apiKeyLength: airtableApiKey ? airtableApiKey.length : 0,
+          hasBaseId: !!airtableBaseId,
+          baseId: airtableBaseId,
+          hasDatabaseUrl: !!databaseUrl,
+          databaseUrl: databaseUrl ? databaseUrl.substring(0, 20) + '...' : null
+        });
+        
         await importService.connect(airtableApiKey, airtableBaseId, databaseUrl);
         
         // Import all tables and get results
         const results = await importService.importMultipleTables(tablesToImport, sessionId);
         
+        // Calculate success metrics from results array
+        const successfulImports = results.filter(r => r.success);
+        const failedImports = results.filter(r => !r.success);
+        const totalRecordsProcessed = successfulImports.reduce((sum, r) => sum + (r.recordsImported || 0), 0);
+        
         // Update session with completion status
         await db.updateImportSession(sessionId, {
-          status: 'COMPLETED',
+          status: failedImports.length === 0 ? 'COMPLETED' : 'PARTIAL_FAILED',
           endTime: new Date(),
-          processedRecords: results.successful,
-          errorMessage: results.errors.length > 0 ? JSON.stringify(results.errors) : null
+          processedRecords: totalRecordsProcessed,
+          errorMessage: failedImports.length > 0 ? JSON.stringify(failedImports.map(f => f.error)) : null
         });
 
         console.log(`✅ Import session completed: ${sessionId}`);
