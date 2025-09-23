@@ -1,27 +1,31 @@
 const AirtableService = require('./airtable');
-const DatabaseService = require('./database');
+const ImportDatabaseService = require('./importDatabase');
 
 class ImportService {
   constructor() {
     this.airtableService = new AirtableService();
-    this.databaseService = new DatabaseService();
+    this.importDatabaseService = new ImportDatabaseService();
     this.progressCallbacks = new Map();
   }
 
   async connect(airtableApiKey, airtableBaseId, databaseUrl) {
     try {
-      // Connect to both services
+      // Connect to both services - pass base ID to database service for naming
       this.airtableService.connect(airtableApiKey, airtableBaseId);
-      await this.databaseService.connect(databaseUrl);
+      const dbConnection = await this.importDatabaseService.connect(databaseUrl, airtableBaseId);
       
-      return { success: true, message: 'Connected to both Airtable and database' };
+      return { 
+        success: true, 
+        message: 'Connected to both Airtable and import database',
+        targetDatabase: dbConnection
+      };
     } catch (error) {
       throw new Error(`Connection failed: ${error.message}`);
     }
   }
 
   async disconnect() {
-    await this.databaseService.disconnect();
+    await this.importDatabaseService.disconnect();
   }
 
   addProgressCallback(sessionId, callback) {
@@ -54,10 +58,28 @@ class ImportService {
         message: 'Fetching records from Airtable...'
       });
 
+      console.log(`🔍 About to fetch records from Airtable table: ${tableName}`);
+      console.log(`🔍 Airtable service state:`, {
+        hasService: !!this.airtableService,
+        hasBase: !!this.airtableService?.base,
+        baseId: this.airtableService?.baseId
+      });
+
       const records = await this.airtableService.getTableRecords(
         tableName,
         (progress) => this.emitProgress(sessionId, progress)
       );
+
+      console.log(`📊 Airtable returned:`, {
+        tableName,
+        recordsType: typeof records,
+        recordsValue: records,
+        recordsLength: records ? records.length : 'undefined'
+      });
+
+      if (!records) {
+        throw new Error(`No records returned from Airtable for table '${tableName}'`);
+      }
 
       if (records.length === 0) {
         this.emitProgress(sessionId, {
@@ -69,16 +91,20 @@ class ImportService {
         return { recordsImported: 0, tableName };
       }
 
-      // Create table in PostgreSQL
+      // Create table in target database using Airtable metadata
       this.emitProgress(sessionId, {
         table: tableName,
         status: 'creating_table',
-        message: 'Creating database table...'
+        message: 'Creating database table from Airtable schema...'
       });
 
-      const sanitizedTableName = await this.databaseService.createTableFromAirtableSchema(
+      // Get table schema from Airtable metadata API
+      const tableSchema = await this.airtableService.getTableSchema(tableName);
+      
+      // Create table using metadata instead of inferring from records
+      const sanitizedTableName = await this.importDatabaseService.createTableFromAirtableMetadata(
         tableName,
-        records
+        tableSchema
       );
 
       // Insert records
@@ -89,10 +115,13 @@ class ImportService {
         totalRecords: records.length
       });
 
-      const insertedCount = await this.databaseService.insertRecords(
+      const insertResult = await this.importDatabaseService.insertRecords(
         sanitizedTableName,
         records
       );
+
+      // insertResult is just the number of inserted records
+      const insertedCount = insertResult;
 
       this.emitProgress(sessionId, {
         table: tableName,

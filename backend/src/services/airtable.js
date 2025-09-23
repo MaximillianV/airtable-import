@@ -10,6 +10,20 @@ class AirtableService {
 
   connect(apiKey, baseId) {
     try {
+      console.log(`🔍 Airtable.connect called with:`, {
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey ? apiKey.length : 0,
+        apiKeyStart: apiKey ? apiKey.substring(0, 10) + '...' : null,
+        apiKeyFormat: apiKey ? (apiKey.startsWith('pat') ? 'PAT' : apiKey.startsWith('key') ? 'Legacy' : 'Unknown') : 'None',
+        hasBaseId: !!baseId,
+        baseId: baseId
+      });
+
+      // Validate API key format
+      if (!apiKey || (!apiKey.startsWith('pat') && !apiKey.startsWith('key'))) {
+        throw new Error('Invalid Airtable API key format. Expected key to start with "pat" or "key"');
+      }
+
       this.apiKey = apiKey;
       this.baseId = baseId;
       
@@ -18,7 +32,10 @@ class AirtableService {
         apiKey: apiKey
       });
 
+      console.log(`🔍 Airtable.configure completed, creating base instance...`);
       this.base = Airtable.base(baseId);
+      
+      console.log(`✅ Airtable connection successful`);
       return true;
     } catch (error) {
       console.error('Airtable connection error:', error.message);
@@ -137,18 +154,75 @@ class AirtableService {
   }
 
   async getTableRecords(tableName, progressCallback) {
+    console.log(`🔍 getTableRecords called for table: ${tableName}`);
+    
     if (!this.base) {
       throw new Error('Not connected to Airtable');
+    }
+
+    // Test the API key with a direct HTTP request first
+    console.log(`🧪 Testing API key with direct HTTP request...`);
+    try {
+      // First test: Base metadata (requires less permissions)
+      const metaUrl = `https://api.airtable.com/v0/meta/bases/${this.baseId}/tables`;
+      const metaResponse = await fetch(metaUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log(`🧪 Base metadata test:`, {
+        status: metaResponse.status,
+        statusText: metaResponse.statusText,
+        ok: metaResponse.ok
+      });
+      
+      if (metaResponse.ok) {
+        const metaData = await metaResponse.json();
+        console.log(`🧪 Base metadata success - found ${metaData.tables?.length || 0} tables`);
+      } else {
+        const metaError = await metaResponse.text();
+        console.log(`🧪 Base metadata error:`, metaError);
+      }
+
+      // Second test: Table records (requires read permissions)
+      const testUrl = `https://api.airtable.com/v0/${this.baseId}/${encodeURIComponent(tableName)}?maxRecords=1`;
+      const testResponse = await fetch(testUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log(`🧪 Table records test:`, {
+        status: testResponse.status,
+        statusText: testResponse.statusText,
+        ok: testResponse.ok
+      });
+      
+      if (!testResponse.ok) {
+        const errorBody = await testResponse.text();
+        console.log(`🧪 Table records error:`, errorBody);
+      } else {
+        const testData = await testResponse.json();
+        console.log(`🧪 Table records success - found ${testData.records?.length || 0} records`);
+      }
+    } catch (directError) {
+      console.error(`🧪 Direct API test failed:`, directError.message);
     }
 
     const records = [];
     let recordCount = 0;
 
     try {
+      console.log(`🔍 Starting Airtable query for table: ${tableName}`);
+      
       await this.base(tableName).select({
         // Optionally specify fields, filters, sort, etc.
       }).eachPage(
         (pageRecords, fetchNextPage) => {
+          console.log(`📄 Got page with ${pageRecords.length} records for table: ${tableName}`);
           records.push(...pageRecords);
           recordCount += pageRecords.length;
           
@@ -164,6 +238,8 @@ class AirtableService {
         }
       );
 
+      console.log(`✅ Completed Airtable query for table: ${tableName}, total records: ${records.length}`);
+
       if (progressCallback) {
         progressCallback({
           table: tableName,
@@ -175,6 +251,8 @@ class AirtableService {
 
       return records;
     } catch (error) {
+      console.error(`❌ Airtable query error for table ${tableName}:`, error);
+      
       if (progressCallback) {
         progressCallback({
           table: tableName,
@@ -236,6 +314,68 @@ class AirtableService {
         throw new Error('Network error - could not reach Airtable API');
       }
       throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get table schema with field types from Airtable Metadata API
+   * 
+   * @param {string} tableName - Name of the table to get schema for
+   * @returns {Promise<Object>} Table schema with field definitions
+   * @throws {Error} When API access fails or table not found
+   */
+  async getTableSchema(tableName) {
+    if (!this.base) {
+      throw new Error('Not connected to Airtable');
+    }
+
+    try {
+      console.log(`🔍 Getting schema for table: ${tableName}`);
+      
+      // Get table metadata from Airtable Metadata API
+      const metadataUrl = `https://api.airtable.com/v0/meta/bases/${this.baseId}/tables`;
+      const response = await fetch(metadataUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Metadata API error: ${response.status} ${response.statusText}`);
+      }
+
+      const metadata = await response.json();
+      
+      if (!metadata || !metadata.tables || !Array.isArray(metadata.tables)) {
+        throw new Error('Invalid response from Metadata API - no tables found');
+      }
+
+      // Find the specific table
+      const tableInfo = metadata.tables.find(table => table.name === tableName);
+      if (!tableInfo) {
+        throw new Error(`Table "${tableName}" not found in base`);
+      }
+
+      console.log(`📋 Found table "${tableName}" with ${tableInfo.fields?.length || 0} fields`);
+      
+      // Log field information for debugging
+      if (tableInfo.fields) {
+        console.log(`🔍 Field details for table "${tableName}":`);
+        tableInfo.fields.forEach(field => {
+          console.log(`  - "${field.name}": type="${field.type}" ${field.options ? `options=${JSON.stringify(field.options)}` : ''}`);
+        });
+      }
+
+      return {
+        id: tableInfo.id,
+        name: tableInfo.name,
+        description: tableInfo.description || null,
+        fields: tableInfo.fields || []
+      };
+    } catch (error) {
+      console.error(`Error getting schema for table "${tableName}":`, error.message);
+      throw error;
     }
   }
 }
