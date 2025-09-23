@@ -55,17 +55,45 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { airtableApiKey, airtableBaseId, databaseUrl } = req.body;
 
-    // Validate required fields (databaseUrl is optional)
-    if (!airtableApiKey || !airtableBaseId) {
+    // Get existing settings to support partial updates
+    const userId = req.user.userId;
+    const existingSettings = await db.getSettings(userId);
+    
+    // Prepare update object with only provided values
+    const updateData = {};
+    
+    // Only update airtableApiKey if provided and not empty
+    if (airtableApiKey && airtableApiKey.trim() !== '') {
+      updateData.airtableApiKey = airtableApiKey;
+    } else if (existingSettings?.airtableApiKey) {
+      updateData.airtableApiKey = existingSettings.airtableApiKey;
+    }
+    
+    // Only update airtableBaseId if provided and not empty
+    if (airtableBaseId && airtableBaseId.trim() !== '') {
+      updateData.airtableBaseId = airtableBaseId;
+    } else if (existingSettings?.airtableBaseId) {
+      updateData.airtableBaseId = existingSettings.airtableBaseId;
+    }
+    
+    // Only update databaseUrl if provided (can be empty to clear)
+    if (databaseUrl !== undefined) {
+      updateData.databaseUrl = databaseUrl;
+    } else if (existingSettings?.databaseUrl) {
+      updateData.databaseUrl = existingSettings.databaseUrl;
+    }
+
+    // Validate that we have required fields after merging
+    if (!updateData.airtableApiKey || !updateData.airtableBaseId) {
       return res.status(400).json({ 
-        error: 'Airtable API key and base ID are required' 
+        error: 'Airtable API key and base ID are required. Please provide missing values or ensure they are already configured.' 
       });
     }
 
     // Validate URL format if provided
-    if (databaseUrl && databaseUrl.trim() !== '') {
+    if (updateData.databaseUrl && updateData.databaseUrl.trim() !== '') {
       try {
-        new URL(databaseUrl);
+        new URL(updateData.databaseUrl);
       } catch (urlError) {
         return res.status(400).json({ 
           error: 'Invalid database URL format' 
@@ -74,11 +102,7 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     // Save settings using Prisma
-    const savedSettings = await db.saveSettings(req.user.userId, {
-      airtableApiKey,
-      airtableBaseId,
-      databaseUrl
-    });
+    const savedSettings = await db.saveSettings(userId, updateData);
 
     console.log(`✅ Settings saved for user ${req.user.email}`);
     res.json({ 
