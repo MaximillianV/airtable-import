@@ -12,6 +12,7 @@ export interface Settings {
   airtableApiKey: string;
   airtableBaseId: string;
   databaseUrl: string;
+  databaseUrlStatus?: 'default' | 'configured';
 }
 
 export interface ConnectionTestResult {
