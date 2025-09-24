@@ -4,6 +4,7 @@ import { settingsAPI, importAPI } from '../services/api';
 import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
 import SchemaMappingWizard from './SchemaMappingWizard';
+import RelationshipWizard from './RelationshipWizard';
 import DebugConsole from './DebugConsole';
 
 const Import: React.FC = () => {
@@ -17,7 +18,9 @@ const Import: React.FC = () => {
   const [overwrite, setOverwrite] = useState(false);
   const [error, setError] = useState('');
   const [showSchemaMappingWizard, setShowSchemaMappingWizard] = useState(false);
+  const [showRelationshipWizard, setShowRelationshipWizard] = useState(false);
   const [mappingConfiguration, setMappingConfiguration] = useState<any>(null);
+  const [relationshipConfiguration, setRelationshipConfiguration] = useState<any>(null);
   const [showDebugConsole, setShowDebugConsole] = useState(false);
   
   // New state for discovery logs and caching
@@ -310,15 +313,15 @@ const Import: React.FC = () => {
 
   /**
    * Handles completion of schema mapping wizard.
-   * Stores the mapping configuration and proceeds with import.
+   * Stores the mapping configuration and proceeds to relationship wizard.
    */
   const handleMappingComplete = (config: any) => {
     console.log('Schema mapping completed:', config);
     setMappingConfiguration(config);
     setShowSchemaMappingWizard(false);
     
-    // Now start the actual import with the configured mapping
-    startImportWithMapping(config);
+    // Proceed to relationship wizard
+    setShowRelationshipWizard(true);
   };
 
   /**
@@ -331,10 +334,32 @@ const Import: React.FC = () => {
   };
 
   /**
-   * Starts the import process with the configured schema mapping.
-   * This is called after the mapping wizard is completed.
+   * Handles completion of relationship wizard.
+   * Stores the relationship configuration and proceeds with import.
    */
-  const startImportWithMapping = async (config: any) => {
+  const handleRelationshipComplete = (relationships: any, fieldConfig: any) => {
+    console.log('Relationship configuration completed:', { relationships, fieldConfig });
+    setRelationshipConfiguration({ relationships, fieldConfig });
+    setShowRelationshipWizard(false);
+    
+    // Now start the actual import with both mapping and relationship configuration
+    startImportWithConfiguration(mappingConfiguration, { relationships, fieldConfig });
+  };
+
+  /**
+   * Handles cancellation of relationship wizard.
+   * Returns to the schema mapping view.
+   */
+  const handleRelationshipCancel = () => {
+    setShowRelationshipWizard(false);
+    setRelationshipConfiguration(null);
+  };
+
+  /**
+   * Starts the import process with the configured schema mapping and relationships.
+   * This is called after both wizards are completed.
+   */
+  const startImportWithConfiguration = async (mappingConfig: any, relationshipConfig: any) => {
     if (selectedTables.length === 0) {
       setError('Please select at least one table to import');
       return;
@@ -437,8 +462,16 @@ const Import: React.FC = () => {
         />
       )}
 
+      {/* Relationship Wizard */}
+      {showRelationshipWizard && (
+        <RelationshipWizard
+          onComplete={handleRelationshipComplete}
+          onCancel={handleRelationshipCancel}
+        />
+      )}
+
       {/* Main Import Interface */}
-      {!showSchemaMappingWizard && (
+      {!showSchemaMappingWizard && !showRelationshipWizard && (
         <div style={styles.content}>
         {!importing ? (
           <div style={styles.setupSection}>

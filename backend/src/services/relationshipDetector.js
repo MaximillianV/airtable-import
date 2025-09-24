@@ -96,11 +96,18 @@ class RelationshipDetector {
         try {
           const schema = await this.airtableService.getTableSchema(table.name);
           this.tableSchemas.set(table.name, schema);
-          console.log(`📋 Cached schema for table: ${table.name}`);
+          console.log(`📋 Cached schema for table: ${table.name} (ID: ${schema.id})`);
         } catch (error) {
           console.warn(`⚠️ Could not get schema for table ${table.name}: ${error.message}`);
         }
       }
+
+      // Log all cached table IDs for debugging
+      console.log('\n📋 CACHED TABLE SCHEMAS:');
+      for (const [tableName, schema] of this.tableSchemas) {
+        console.log(`   ${tableName} → ID: ${schema.id}`);
+      }
+      console.log('================================\n');
 
       // Step 3: Analyze linked record fields in each table
       this.detectedRelationships = [];
@@ -220,19 +227,84 @@ class RelationshipDetector {
     if (inverseField) {
       const inverseIsMultiple = inverseField.type === 'multipleRecordLinks';
       
-      if (!isMultiple && !inverseIsMultiple) {
+      // Enhanced logic: Consider prefersSingleRecordLink option for better detection
+      const sourcePrefersSingle = field.options?.prefersSingleRecordLink === true;
+      const inversePrefersSingle = inverseField.options?.prefersSingleRecordLink === true;
+      
+      // Determine effective cardinality considering both field type and preferences
+      const sourceEffectivelyMultiple = isMultiple && !sourcePrefersSingle;
+      const inverseEffectivelyMultiple = inverseIsMultiple && !inversePrefersSingle;
+      
+      console.log(`🔍 Relationship analysis: ${sourceTableName}.${field.name} → ${targetTableName}`);
+      console.log(`   Source: ${field.type}, prefersSingle: ${sourcePrefersSingle}, effective: ${sourceEffectivelyMultiple ? 'multiple' : 'single'}`);
+      console.log(`   Inverse: ${inverseField.type}, prefersSingle: ${inversePrefersSingle}, effective: ${inverseEffectivelyMultiple ? 'multiple' : 'single'}`);
+      
+      if (!sourceEffectivelyMultiple && !inverseEffectivelyMultiple) {
         return 'one-to-one';
-      } else if (!isMultiple && inverseIsMultiple) {
+      } else if (!sourceEffectivelyMultiple && inverseEffectivelyMultiple) {
         return 'many-to-one';  // Many records in target can link to one in source
-      } else if (isMultiple && !inverseIsMultiple) {
+      } else if (sourceEffectivelyMultiple && !inverseEffectivelyMultiple) {
         return 'one-to-many';  // One record in source can link to many in target
       } else {
+        // Both sides allow multiple - check if this is truly many-to-many or just poorly configured
+        // Look for naming patterns that suggest one-to-many relationships
+        const sourceFieldNameSingular = this.isFieldNameSingular(field.name);
+        const inverseFieldNamePlural = this.isFieldNamePlural(inverseField.name);
+        
+        if (sourceFieldNameSingular && inverseFieldNamePlural) {
+          console.log(`   💡 Detected naming pattern suggests one-to-many: ${field.name} (singular) → ${inverseField.name} (plural)`);
+          return 'one-to-many';
+        }
+        
         return 'many-to-many'; // Both sides allow multiple records
       }
     }
     
-    // If no inverse field found, make best guess based on field type
-    return isMultiple ? 'one-to-many' : 'many-to-one';
+    // If no inverse field found, make best guess based on field type and name
+    if (isMultiple) {
+      // Check if the field name suggests it should be one-to-many
+      const fieldNameSingular = this.isFieldNameSingular(field.name);
+      return fieldNameSingular ? 'many-to-one' : 'one-to-many';
+    } else {
+      return 'many-to-one';
+    }
+  }
+
+  /**
+   * Checks if a field name appears to be singular (suggesting a one-to-many relationship)
+   * @param {string} fieldName - The name of the field
+   * @returns {boolean} True if the field name appears singular
+   */
+  isFieldNameSingular(fieldName) {
+    const singularPatterns = [
+      /^contact$/i,
+      /^customer$/i,
+      /^user$/i,
+      /^person$/i,
+      /^account$/i,
+      /^address$/i
+    ];
+    
+    return singularPatterns.some(pattern => pattern.test(fieldName.toLowerCase()));
+  }
+
+  /**
+   * Checks if a field name appears to be plural (suggesting the many side of a relationship)
+   * @param {string} fieldName - The name of the field
+   * @returns {boolean} True if the field name appears plural
+   */
+  isFieldNamePlural(fieldName) {
+    const pluralPatterns = [
+      /s$/i,  // Ends with 's'
+      /contacts$/i,
+      /customers$/i,
+      /users$/i,
+      /subscriptions$/i,
+      /items$/i,
+      /orders$/i
+    ];
+    
+    return pluralPatterns.some(pattern => pattern.test(fieldName.toLowerCase()));
   }
 
   /**
@@ -322,6 +394,13 @@ class RelationshipDetector {
         return tableName;
       }
     }
+    
+    // Enhanced debugging for missing table IDs
+    console.warn(`⚠️ Table ID ${tableId} not found in cached schemas. Available tables:`);
+    for (const [tableName, schema] of this.tableSchemas) {
+      console.warn(`   ${tableName} → ID: ${schema.id}`);
+    }
+    
     return null;
   }
 
@@ -361,6 +440,158 @@ class RelationshipDetector {
       }
     });
     console.log('=====================================\n');
+  }
+
+  /**
+   * Provides detailed debugging information about field analysis and relationship detection
+   * @returns {Promise<Object>} Comprehensive debugging data for troubleshooting
+   */
+  async getDebugInformation() {
+    console.log('🔍 Generating comprehensive debugging information...');
+    
+    try {
+      // Get all tables first
+      const tables = await this.airtableService.discoverTablesWithCounts();
+      console.log(`📋 Analyzing ${tables.length} tables for debug information`);
+
+      const debugData = {
+        tables: [],
+        linkedFields: [],
+        fieldTypeDistribution: {},
+        relationshipAnalysis: [],
+        potentialIssues: [],
+        summary: {
+          totalTables: tables.length,
+          totalFields: 0,
+          linkedRecordFields: 0,
+          otherFieldTypes: {},
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      // Analyze each table in detail
+      for (const table of tables) {
+        try {
+          const schema = await this.airtableService.getTableSchema(table.name);
+          const tableDebugInfo = {
+            name: table.name,
+            id: schema.id,
+            recordCount: table.recordCount,
+            fields: [],
+            linkedFields: [],
+            relationshipCount: 0
+          };
+
+          // Analyze each field in the table
+          for (const field of schema.fields || []) {
+            const fieldInfo = {
+              name: field.name,
+              id: field.id,
+              type: field.type,
+              options: field.options || {},
+              isLinkedRecord: field.type === 'multipleRecordLinks' || field.type === 'singleRecordLink'
+            };
+
+            tableDebugInfo.fields.push(fieldInfo);
+            debugData.summary.totalFields++;
+
+            // Track field type distribution
+            debugData.fieldTypeDistribution[field.type] = (debugData.fieldTypeDistribution[field.type] || 0) + 1;
+
+            // Analyze linked record fields in detail
+            if (fieldInfo.isLinkedRecord) {
+              debugData.summary.linkedRecordFields++;
+              
+              const linkedFieldDebug = {
+                sourceTable: table.name,
+                fieldName: field.name,
+                fieldType: field.type,
+                linkedTableId: field.options?.linkedTableId,
+                inverseLinkFieldId: field.options?.inverseLinkFieldId,
+                isRequired: field.options?.isRequired || false,
+                allowsMultiple: field.type === 'multipleRecordLinks'
+              };
+
+              // Try to find the target table name
+              const targetTableName = this.findTableNameById(field.options?.linkedTableId);
+              linkedFieldDebug.linkedTableName = targetTableName;
+
+              // Analyze the inverse relationship if possible
+              if (targetTableName && this.tableSchemas.get(targetTableName)) {
+                const targetSchema = this.tableSchemas.get(targetTableName);
+                const inverseField = this.findInverseField(targetSchema, table.name, field.options?.inverseLinkFieldId);
+                
+                if (inverseField) {
+                  linkedFieldDebug.inverseField = {
+                    name: inverseField.name,
+                    type: inverseField.type,
+                    allowsMultiple: inverseField.type === 'multipleRecordLinks'
+                  };
+                  
+                  // Determine relationship type based on both sides
+                  const sourceMultiple = field.type === 'multipleRecordLinks';
+                  const targetMultiple = inverseField.type === 'multipleRecordLinks';
+                  
+                  if (sourceMultiple && targetMultiple) {
+                    linkedFieldDebug.detectedRelationshipType = 'many-to-many';
+                  } else if (sourceMultiple && !targetMultiple) {
+                    linkedFieldDebug.detectedRelationshipType = 'one-to-many';
+                  } else if (!sourceMultiple && targetMultiple) {
+                    linkedFieldDebug.detectedRelationshipType = 'many-to-one';
+                  } else {
+                    linkedFieldDebug.detectedRelationshipType = 'one-to-one';
+                  }
+                } else {
+                  linkedFieldDebug.detectedRelationshipType = 'unknown (no inverse field found)';
+                  debugData.potentialIssues.push(`No inverse field found for ${table.name}.${field.name} → ${targetTableName}`);
+                }
+              } else {
+                linkedFieldDebug.detectedRelationshipType = 'unknown (target table not found)';
+                debugData.potentialIssues.push(`Target table not found for ${table.name}.${field.name} (ID: ${field.options?.linkedTableId})`);
+                
+                // Add detailed information about what tables ARE available
+                const availableTables = Array.from(this.tableSchemas.entries()).map(([name, schema]) => 
+                  `${name} (ID: ${schema.id})`
+                ).join(', ');
+                debugData.potentialIssues.push(`Available tables: ${availableTables}`);
+              }
+
+              tableDebugInfo.linkedFields.push(linkedFieldDebug);
+              debugData.linkedFields.push(linkedFieldDebug);
+              tableDebugInfo.relationshipCount++;
+            } else {
+              debugData.summary.otherFieldTypes[field.type] = (debugData.summary.otherFieldTypes[field.type] || 0) + 1;
+            }
+          }
+
+          debugData.tables.push(tableDebugInfo);
+          this.tableSchemas.set(table.name, schema);
+          
+        } catch (error) {
+          console.warn(`⚠️ Could not analyze table ${table.name} for debugging: ${error.message}`);
+          debugData.potentialIssues.push(`Failed to analyze table ${table.name}: ${error.message}`);
+        }
+      }
+
+      // Add analysis of why we might be getting too many many-to-many relationships
+      const manyToManyCount = debugData.linkedFields.filter(f => f.detectedRelationshipType === 'many-to-many').length;
+      const totalLinkedFields = debugData.linkedFields.length;
+      
+      if (manyToManyCount > totalLinkedFields * 0.5) {
+        debugData.potentialIssues.push(`High ratio of many-to-many relationships detected (${manyToManyCount}/${totalLinkedFields}). This may indicate:`);
+        debugData.potentialIssues.push('1. Most linked record fields are configured as "multipleRecordLinks" in Airtable');
+        debugData.potentialIssues.push('2. The relationships may need manual review to determine actual cardinality');
+        debugData.potentialIssues.push('3. Some relationships might be better modeled as one-to-many or many-to-one');
+      }
+
+      console.log(`🔍 Debug analysis complete: ${debugData.linkedFields.length} linked fields, ${manyToManyCount} many-to-many relationships`);
+
+      return debugData;
+      
+    } catch (error) {
+      console.error('❌ Error generating debug information:', error.message);
+      throw error;
+    }
   }
 
   /**

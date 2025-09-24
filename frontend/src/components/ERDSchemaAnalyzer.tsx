@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DatabaseRelationship, RelationshipAnalysisResult, ERDTable, ERDColumn, ERDRelationship } from '../types';
 import { importAPI } from '../services/api';
+import RelationshipDebugger from './RelationshipDebugger';
 
 interface ERDSchemaAnalyzerProps {
   onAnalysisComplete?: (analysis: RelationshipAnalysisResult) => void;
@@ -441,6 +442,14 @@ const ERDSchemaAnalyzer: React.FC<ERDSchemaAnalyzerProps> = ({
           Interactive Entity Relationship Diagram showing database relationships detected from your Airtable base
         </p>
       </div>
+
+      {/* Relationship Debugger for troubleshooting relationship detection */}
+      <RelationshipDebugger 
+        initiallyExpanded={false}
+        onAnalysisComplete={(debugData) => {
+          console.log('🔍 Debug analysis complete:', debugData);
+        }}
+      />
 
       <div style={styles.controls}>
         <button

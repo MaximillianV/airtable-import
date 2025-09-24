@@ -137,6 +137,18 @@ export const importAPI = {
     const response = await api.post('/import/analyze-relationships');
     return response.data;
   },
+
+  // Debug Relationships API - provides detailed debugging information
+  debugRelationships: async (): Promise<any> => {
+    const response = await api.post('/import/debug-relationships');
+    return response.data;
+  },
+
+  // Field Type Analysis API - analyzes special Airtable field types
+  analyzeFieldTypes: async (): Promise<any> => {
+    const response = await api.post('/import/analyze-field-types');
+    return response.data;
+  },
 };
 
 export default api;

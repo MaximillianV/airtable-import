@@ -222,6 +222,105 @@ router.post('/analyze-relationships', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Debug relationships endpoint
+ * Provides detailed debugging information about relationship detection for troubleshooting
+ */
+router.post('/debug-relationships', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔍 Starting detailed relationship debugging...');
+    
+    // Get user settings to access Airtable credentials
+    const settings = await getUserSettings(req.user.userId);
+    
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for relationship debugging' 
+      });
+    }
+
+    // Import the RelationshipDetector service
+    const { RelationshipDetector } = require('../services/relationshipDetector');
+    
+    // Create and configure the relationship detector
+    const detector = new RelationshipDetector();
+    await detector.connect(settings.airtableApiKey, settings.airtableBaseId);
+    
+    // Get comprehensive debugging information
+    console.log('🔍 Gathering comprehensive debugging data...');
+    const debugInfo = await detector.getDebugInformation();
+    
+    console.log(`🔍 Debug analysis complete. Found ${debugInfo.linkedFields.length} linked fields across ${debugInfo.tables.length} tables`);
+    
+    res.json({
+      success: true,
+      message: `Debug analysis complete: ${debugInfo.linkedFields.length} linked fields analyzed`,
+      data: debugInfo,
+      insights: {
+        potentialIssues: debugInfo.potentialIssues,
+        fieldTypeDistribution: debugInfo.fieldTypeDistribution,
+        manyToManyRatio: debugInfo.linkedFields.filter(f => f.detectedRelationshipType === 'many-to-many').length / Math.max(debugInfo.linkedFields.length, 1)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Relationship debugging error:', error);
+    res.status(500).json({ 
+      error: 'Failed to debug relationships: ' + error.message 
+    });
+  }
+});
+
+/**
+ * Analyze field types endpoint
+ * Analyzes Airtable field types and provides configuration recommendations
+ * for special field types like selects, lookups, and collaborators
+ */
+router.post('/analyze-field-types', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔧 Starting field type analysis...');
+    
+    // Get user settings for Airtable connection
+    const settings = await getUserSettings(req.user.userId);
+    
+    // Validate required Airtable settings
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for field type analysis' 
+      });
+    }
+
+    // Initialize Airtable service
+    const AirtableService = require('../services/airtable');
+    const airtableService = new AirtableService();
+    await airtableService.connect(settings.airtableApiKey, settings.airtableBaseId);
+    
+    // Get schema information
+    const schemaInfo = await airtableService.getSchemaInfo();
+    
+    // Use the FieldTypeAnalyzer service for comprehensive analysis
+    const FieldTypeAnalyzer = require('../services/fieldTypeAnalyzer');
+    const analyzer = new FieldTypeAnalyzer();
+    const analysis = analyzer.analyzeFieldTypes(schemaInfo);
+
+    console.log(`🔧 Field type analysis complete: ${analysis.summary.totalSpecialFields} special fields found`);
+    
+    res.json({
+      success: true,
+      data: analysis,
+      summary: analysis.summary,
+      insights: analysis.insights
+    });
+    
+  } catch (error) {
+    console.error('❌ Field type analysis failed:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to analyze field types',
+      details: error.message 
+    });
+  }
+});
+
+/**
  * Emit session completion event for a specific completed session
  * Used to fix frontend state when session completion events were missed
  */

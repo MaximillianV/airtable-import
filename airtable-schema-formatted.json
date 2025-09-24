@@ -1,0 +1,5756 @@
+{
+  "tables": [
+    {
+      "id": "tblhkHp0boehNpQuE",
+      "name": "Subscriptions",
+      "primaryFieldId": "fldTVcmUAcmJv7y8D",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "UPPER(\r\n  IF({fldTBjPw1dMcoV3ry}, {fldTBjPw1dMcoV3ry}, \"Incompleet\") & \r\n  \" - \" &\r\n  DATETIME_DIFF(CREATED_TIME(), '1970-01-01', 'seconds') & \r\n  \" - \" &\r\n  {fldt6TEhFz9VcTlue}\r\n)",
+            "referencedFieldIds": [
+              "fldTBjPw1dMcoV3ry",
+              "fldt6TEhFz9VcTlue"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldTVcmUAcmJv7y8D",
+          "name": "Contract",
+          "description": "Generates a contract code by combining address details and the number of seconds since the record was created, and uppercasing the result. Also includes the current status of the subscription."
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblbg7W8lk6EEEzPz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fld5zO9a4hRprye1J"
+          },
+          "id": "fldcblHEWVTYIZY49",
+          "name": "Contact"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhlHONZak8QYqDz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldT4xMXU3rXIMSEw"
+          },
+          "id": "fldTBjPw1dMcoV3ry",
+          "name": "Addresses"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblAslC2uUO5eiMvL",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldbgWw696FTg6yku"
+          },
+          "id": "fld0yjTcIycqcvvTT",
+          "name": "SEPA Mandates"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcblHEWVTYIZY49",
+            "fieldIdInLinkedTable": "fldmNwvzXHth1cRN1",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldxob8301LzczaGX",
+          "name": "Mollie Contact Id (from Contact)"
+        },
+        {
+          "type": "multipleSelects",
+          "options": {
+            "choices": [
+              {
+                "id": "selgzyAu1oGTnSwnI",
+                "name": "SEPA Incasso",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selUK8aevfATp6Rm8",
+                "name": "Factuur per post",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selwb21u76hbGKPXb",
+                "name": "Factuur per e-mail",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selaaXB0k2Weu00X2",
+                "name": "Ideal (website)",
+                "color": "greenLight2"
+              },
+              {
+                "id": "sel8mIIneOHdJpSgm",
+                "name": "Ideal (email)",
+                "color": "yellowLight2"
+              },
+              {
+                "id": "selLupcmc8o1wlT3E",
+                "name": "Factuur per email",
+                "color": "blueLight2"
+              }
+            ]
+          },
+          "id": "fldq9xKN4Qq85ux6G",
+          "name": "Betaalmethode"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fld1GWf8qEuwwzX3h",
+          "name": "Start Date"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selca91b3D2eLsq9G",
+                "name": "In Wacht",
+                "color": "yellowBright"
+              },
+              {
+                "id": "sellTKtakXmVsTfZ2",
+                "name": "Gepland",
+                "color": "greenLight1"
+              },
+              {
+                "id": "sel15DpmdgKNA3Vdu",
+                "name": "Actief",
+                "color": "blueBright"
+              },
+              {
+                "id": "seltdjwiLA0BovHNm",
+                "name": "Geannuleerd",
+                "color": "orangeBright"
+              },
+              {
+                "id": "sellXoXvVLCiwG0G8",
+                "name": "Opgezegd",
+                "color": "redBright"
+              },
+              {
+                "id": "seloJpEHN2TUrRchX",
+                "name": "Dubbele Order",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selW3wWhuapHT9PIP",
+                "name": "Niet Wasbaar",
+                "color": "pinkLight1"
+              }
+            ]
+          },
+          "id": "fldt6TEhFz9VcTlue",
+          "name": "Status"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selkPe2cnmBKLrrDF",
+                "name": "Maand",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selzcrCPnC0svhDra",
+                "name": "Jaar",
+                "color": "cyanLight2"
+              }
+            ]
+          },
+          "id": "fldlwG96ZHkWPUkkJ",
+          "name": "Contractsduur"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selnlPUzG1sGWRO19",
+                "name": "12",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selqmBJv4wVGpXXkg",
+                "name": "6",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selcxxpgBgIwPVTbr",
+                "name": "24",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selb0KYV1WiuW5Ml7",
+                "name": "1",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldQi8DmwA4YPAJE8",
+          "name": "Reinigingfrequentie"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selBy5rttphApFOB4",
+                "name": "Maandelijks",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selpprmej6O7JW0pl",
+                "name": "Jaarlijks",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selzvqDFEuY2pCugz",
+                "name": "Kwartaal",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selLJ0xgidVX2nMTm",
+                "name": "Eenmalig",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldG8ysqNM8Mn9r2D",
+          "name": "Betaalfrequentie"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "yellowBright"
+          },
+          "id": "fldot3EoHGjVEZmCZ",
+          "name": "In Cooldown Period"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldJju1mCIb0kI8E1"
+          },
+          "id": "flda5MLxn1Slez1By",
+          "name": "Producten"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "flda5MLxn1Slez1By",
+            "fieldIdInLinkedTable": "fldxdRG2yM4o6MoF0",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldb5JFXZOzKfdbqZ",
+          "name": "Quantity (from Producten)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "flda5MLxn1Slez1By",
+            "fieldIdInLinkedTable": "fldEJH8OThnTYCVkX",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldfmXuXW5TZCWY3c",
+          "name": "Product (from Producten)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblcQdVv7aQvT3xsD",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld01gMw2NPMORvK2"
+          },
+          "id": "fldbATYQZzht7DPlA",
+          "name": "Deals"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "SUM({fldb5JFXZOzKfdbqZ})",
+            "referencedFieldIds": [
+              "fldb5JFXZOzKfdbqZ"
+            ],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldi3q0wbnpH7ej6v",
+          "name": "Total Quantity",
+          "description": "Calculates the total quantity of all products in the subscription"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldTQrIceIHMJEacZ",
+          "name": "Opzeggen Per"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldbt0DFdIsOgPhQX",
+          "name": "Renewal Date"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldrYiiGqnX9qrYws",
+          "name": "End Date"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldbkf1bLk2yn6rwW",
+          "name": "Created"
+        },
+        {
+          "type": "lastModifiedTime",
+          "options": {
+            "isValid": true,
+            "referencedFieldIds": [],
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldwWnDVAG48jK2No",
+          "name": "Last Modified"
+        },
+        {
+          "type": "createdBy",
+          "id": "fldC6NpA9Va59r3aw",
+          "name": "Created By"
+        },
+        {
+          "type": "lastModifiedBy",
+          "id": "fldsGZbo91jhkgbPz",
+          "name": "Last Modified By"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "DATETIME_DIFF(CREATED_TIME(), '1970-01-01', 'seconds')",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldKCkIkvayfHhOnf",
+          "name": "Created Seconds",
+          "description": "Calculates the number of seconds since January 1, 1970 until the record was created."
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldGXzesKHdYuh43F",
+          "name": "Opgezegd Op"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldwatH6c5At9ejsL"
+          },
+          "id": "fldjVbFp90yc2LAXE",
+          "name": "Invoices"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "greenBright"
+          },
+          "id": "fldhtmDNtGNPnNWYv",
+          "name": "Invoices Generated"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcblHEWVTYIZY49",
+            "fieldIdInLinkedTable": "fldBo7JKobUzlbFjb",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldrqtVE5gW4IvdE4",
+          "name": "Volledige Naam (from Contact)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "flda5MLxn1Slez1By",
+            "fieldIdInLinkedTable": "fldJmaRTylOYnpbbG",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selQdTJ5qJ1DD37j1",
+                    "name": "GFT",
+                    "color": "greenBright"
+                  },
+                  {
+                    "id": "seli8iebyqq97K41J",
+                    "name": "RST",
+                    "color": "grayBright"
+                  },
+                  {
+                    "id": "selwStKe3981DImVq",
+                    "name": "PMD",
+                    "color": "yellowBright"
+                  },
+                  {
+                    "id": "sel0hCxCTCNjtXVJR",
+                    "name": "DUO",
+                    "color": "tealBright"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fld6oJuXmXG3iZ2H3",
+          "name": "Product Type (from Producten)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblPtgtvItVHVisJf",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldXmoKndFXE2WThi"
+          },
+          "id": "fldupsWEB8zPrTi2X",
+          "name": "Attachments"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldupsWEB8zPrTi2X",
+            "fieldIdInLinkedTable": "flddWHBbwVs9lj35r",
+            "result": {
+              "type": "multipleAttachments",
+              "options": {
+                "isReversed": true
+              }
+            }
+          },
+          "id": "fldi7f1TylpuvdjPk",
+          "name": "Contract Template"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcblHEWVTYIZY49",
+            "fieldIdInLinkedTable": "fldeOAZlZNtcSjEWe",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldYZvY4ih7snGgyl",
+          "name": "Voornaam (from Contact)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcblHEWVTYIZY49",
+            "fieldIdInLinkedTable": "fldZ6TcR5RITTJcKT",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldKCpfTB4hoIg77A",
+          "name": "Achternaam (from Contact)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDjDGQo58fb1Wcc",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldcAj1IAu73E0AOw"
+          },
+          "id": "fldtfhayR2M52Epg1",
+          "name": "Contracten"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldbATYQZzht7DPlA",
+            "fieldIdInLinkedTable": "fldz5MVm5SP2E8OfI",
+            "result": {
+              "type": "richText"
+            }
+          },
+          "id": "fld4B44joSlDwGFBg",
+          "name": "Deal Voorwaarden Samenvatting (from Deals)"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldthnQHGVUvKr7Kz",
+          "name": "Order Information"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldB86vok2TjNK2Bv",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldXHNLCpSbxKseOa",
+          "name": "Adress-Suffix"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblTWwcSV3U0nq2aW",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldX6mkWXc2KXfUvA"
+          },
+          "id": "fldoFcWN2JvXqaHN1",
+          "name": "Table 1: Tickets (The Inbox)"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "flda5MLxn1Slez1By",
+            "fieldIdInLinkedTable": "fldHJyrVzfMQbjboI",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fld0a33uEjtIb6rJ9",
+          "name": "Unit Price Rollup (from Producten)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld0yjTcIycqcvvTT",
+            "fieldIdInLinkedTable": "fld80COy47zuKKVOl",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldL8kju78PMRgLHS",
+          "name": "SEPA Mandaat ID (from SEPA Mandates)"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "AND(\r\n    {fldq9xKN4Qq85ux6G} = \"SEPA Incasso\",\r\n    OR(\r\n        {fldxob8301LzczaGX} = BLANK(),\r\n        {fldL8kju78PMRgLHS} = BLANK()\r\n    )\r\n)",
+            "referencedFieldIds": [
+              "fldq9xKN4Qq85ux6G",
+              "fldxob8301LzczaGX",
+              "fldL8kju78PMRgLHS"
+            ],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldzExjkZ7lAPhT7P",
+          "name": "Mollie Check"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldkJ8FLDSENiMB5C",
+          "name": "Failure Log"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldYTZDkcfUp5pBhD",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldAiFe0txmGZU8xA",
+          "name": "Huisnummer (from Adress-Suffix) (from Addresses)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldVEzZUGSRehDc54",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldYcretL5Xq0tAjZ",
+          "name": "Toevoeging (from Adress-Suffix) (from Addresses)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldW0N7xx8UmLnwoX",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldI6XO34KjPpaH5N",
+          "name": "Letter (from Adress-Suffix) (from Addresses)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fld69xoG5xx364SUz",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldmwLchaWQkblgI2",
+          "name": "Postcode (from Adress-Suffix) (from Addresses)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldj9AFoMISUx5eMx",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld2dybSeAPGa0jvm",
+          "name": "Straat (from Adress-Suffix) (from Addresses)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldTBjPw1dMcoV3ry",
+            "fieldIdInLinkedTable": "fldzz4zoDS1QzpmqA",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldFFiPxtKlHv0plD",
+          "name": "Woonplaats (from Adress-Suffix) (from Addresses)"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwp6Hnr9w4T7Pb0U",
+          "name": "Grid view",
+          "type": "grid"
+        },
+        {
+          "id": "viwr5ZtcIHFE44Uc3",
+          "name": "List",
+          "type": "levels"
+        }
+      ]
+    },
+    {
+      "id": "tblhlHONZak8QYqDz",
+      "name": "Addresses",
+      "primaryFieldId": "fldfSXB1hhm6EsbZa",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "{fldB86vok2TjNK2Bv}",
+            "referencedFieldIds": [
+              "fldB86vok2TjNK2Bv"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldfSXB1hhm6EsbZa",
+          "name": "Postcode Id",
+          "description": "Combines the postal code, house number, letter, and addition into a unique address string."
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldOvUsob6QGiAKn0",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld7PxhlHPSFTty9q",
+          "name": "Volledig Adres"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblbg7W8lk6EEEzPz",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldvw3bcFuRhddbde"
+          },
+          "id": "fldME2Gs1M7kkCWUc",
+          "name": "Contacts"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldTBjPw1dMcoV3ry"
+          },
+          "id": "fldT4xMXU3rXIMSEw",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhFvggmzquxXUSi",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldgH9oVwwQEdyBKF"
+          },
+          "id": "fldB86vok2TjNK2Bv",
+          "name": "Adress-Suffix"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldaWF2fPIm9aKdJO",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldYTZDkcfUp5pBhD",
+          "name": "Huisnummer (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldir8Aw0dBxRUHhU",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldVEzZUGSRehDc54",
+          "name": "Toevoeging (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldPrrlV0uEnRbQ6q",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldW0N7xx8UmLnwoX",
+          "name": "Letter (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldN3DGoc49vRlXbS",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld69xoG5xx364SUz",
+          "name": "Postcode (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldeNYpEs4txYU4GA",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldj9AFoMISUx5eMx",
+          "name": "Straat (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldc3wxAr7VdNEWid",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldzz4zoDS1QzpmqA",
+          "name": "Woonplaats (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fld518DsvOW5kYCxI",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldCSDO21GubKb4nk",
+          "name": "Gemeente (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldrsTEJnmQuQVo5b",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldgKu1xZBTxaX0Md",
+          "name": "Provincie Afkorting (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fld00ck5w20JOTngN",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldMFHt0Nil9R3TS8",
+          "name": "Provincie (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldwY523UZuNIoUf4",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 6
+              }
+            }
+          },
+          "id": "fldtREzkYSPw7Vl8t",
+          "name": "Latitude (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldLiIfP7rVbbhh1h",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 6
+              }
+            }
+          },
+          "id": "fldObQIgRQvRYjqIZ",
+          "name": "Longitude (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldnmFpUp4ASKzUH5",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldlPNmOBLCij6NP9",
+          "name": "Functie (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldqSRiitmGea52Fz",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldLg97ibEVWDUoAN",
+          "name": "Adres 1 (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldoVcsNHvjRLeJHJ",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldVvjU4krTYavrDU",
+          "name": "Adres 2 (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldoNavjXkMKorWCt",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldvWDdrwg4RfZLsS",
+          "name": "Subscriptions (from Adress-Suffix)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldB86vok2TjNK2Bv",
+            "fieldIdInLinkedTable": "fldHUV9k0WRZYudum",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldyt7QwnUfG0zpj0",
+          "name": "Adres-Product Koppeling (from Adress-Suffix)"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selVX0jKkAPGJqgrz",
+                "name": "Gevonden",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selEhpp1AVNOuCfdd",
+                "name": "Niet Gevonden",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selhovvyLsqpOejjY",
+                "name": "Zoeken",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selvsrySYf3bjFWAD",
+                "name": "Meerdere Adressen Gevonden",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldKCp1lwSDRPn5kC",
+          "name": "Status"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldNJPeVPF39amtW9",
+          "name": "Postcode"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldaCRAMsjgNtLJu5",
+          "name": "Huisnummer"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldi7k83DOvbaVd2b",
+          "name": "Toevoeging"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwPRbyBjqxtRh1qL",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblbg7W8lk6EEEzPz",
+      "name": "Contacts",
+      "primaryFieldId": "fldfojcXUfgECQ6sJ",
+      "fields": [
+        {
+          "type": "email",
+          "id": "fldfojcXUfgECQ6sJ",
+          "name": "Email"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE({fldeOAZlZNtcSjEWe}, \" \", {fldZ6TcR5RITTJcKT})",
+            "referencedFieldIds": [
+              "fldeOAZlZNtcSjEWe",
+              "fldZ6TcR5RITTJcKT"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldBo7JKobUzlbFjb",
+          "name": "Volledige Naam",
+          "description": "Combines the first and last name fields to create a full name"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldeOAZlZNtcSjEWe",
+          "name": "Voornaam"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldZ6TcR5RITTJcKT",
+          "name": "Achternaam"
+        },
+        {
+          "type": "phoneNumber",
+          "id": "fldl7GwWFP8ITXXWn",
+          "name": "Telefoon"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhlHONZak8QYqDz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldME2Gs1M7kkCWUc"
+          },
+          "id": "fldvw3bcFuRhddbde",
+          "name": "Adres"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selGpNBFAGNC5JWwe",
+                "name": "Actief",
+                "color": "greenLight1"
+              },
+              {
+                "id": "sel1DoWEQBCaxhagS",
+                "name": "Opgezegd",
+                "color": "redDark1"
+              },
+              {
+                "id": "selmNSbXLxvv4csqn",
+                "name": "Geannuleerd",
+                "color": "orangeBright"
+              },
+              {
+                "id": "sel95EymTip4dDFYC",
+                "name": "Lead",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "sel2e6Vwyxppt90A4",
+                "name": "Wachtlijst",
+                "color": "yellowLight2"
+              }
+            ]
+          },
+          "id": "fldF0RvdexiYmZxwg",
+          "name": "Status"
+        },
+        {
+          "type": "createdBy",
+          "id": "flddiV1Wdq91XbioO",
+          "name": "Aangemaakt door"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "greenBright"
+          },
+          "id": "fldeEWwGAesUGoUjp",
+          "name": "Adres Found"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldcblHEWVTYIZY49"
+          },
+          "id": "fld5zO9a4hRprye1J",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldMYKAWi4KznfpVg"
+          },
+          "id": "fldE4i4HY7vjikqMM",
+          "name": "Invoices"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblAslC2uUO5eiMvL",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldiDmnCydaPJoFhJ"
+          },
+          "id": "fldo9rLgGfnVUt6gz",
+          "name": "SEPA Mandates"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldmNwvzXHth1cRN1",
+          "name": "Mollie Contact Id"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "{fldfojcXUfgECQ6sJ} = '1@2.com'",
+            "referencedFieldIds": [
+              "fldfojcXUfgECQ6sJ"
+            ],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldiH8hU9qncQ6DUv",
+          "name": "Calculation"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblTWwcSV3U0nq2aW",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld54JqqobU6IfnM9"
+          },
+          "id": "fldMUpCUIdXltExPs",
+          "name": "Table 1: Tickets (The Inbox)"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldBcUHHujDWmt2Ni",
+          "name": "Aangemaakt"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwrpiyYArZzJN0F8",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tbl7cGZKAyAXeBue7",
+      "name": "Subscription Items",
+      "primaryFieldId": "fldJLanvKDmwRrHu2",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE({fldxdRG2yM4o6MoF0}, \"x \", {fldEJH8OThnTYCVkX})",
+            "referencedFieldIds": [
+              "fldxdRG2yM4o6MoF0",
+              "fldEJH8OThnTYCVkX"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldJLanvKDmwRrHu2",
+          "name": "Abonnement Product",
+          "description": "Displays the quantity and the name of the chosen product together in a single field."
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "flda5MLxn1Slez1By"
+          },
+          "id": "fldJju1mCIb0kI8E1",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblcVuGCNjUrk08AN",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldtVPBkA8ktsXTNo"
+          },
+          "id": "fldEJH8OThnTYCVkX",
+          "name": "Product"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldxdRG2yM4o6MoF0",
+          "name": "Aantal"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldEJH8OThnTYCVkX",
+            "fieldIdInLinkedTable": "fldCvvYRwopccxNLb",
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldGn2D3Nem1wmUJ1",
+          "name": "Basis Prijs"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldEJH8OThnTYCVkX",
+            "fieldIdInLinkedTable": "fld8XH51pcX7CDg8O",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selQdTJ5qJ1DD37j1",
+                    "name": "GFT",
+                    "color": "greenBright"
+                  },
+                  {
+                    "id": "seli8iebyqq97K41J",
+                    "name": "RST",
+                    "color": "grayBright"
+                  },
+                  {
+                    "id": "selwStKe3981DImVq",
+                    "name": "PMD",
+                    "color": "yellowBright"
+                  },
+                  {
+                    "id": "sel0hCxCTCNjtXVJR",
+                    "name": "DUO",
+                    "color": "tealBright"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldJmaRTylOYnpbbG",
+          "name": "Product Type"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldfmXuXW5TZCWY3c",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldAE23Rfva45rCLs",
+          "name": "Product (from Producten) (from Subscriptions)"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldHJyrVzfMQbjboI",
+          "name": "Unit Price"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fld6oJuXmXG3iZ2H3",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selQdTJ5qJ1DD37j1",
+                    "name": "GFT",
+                    "color": "greenBright"
+                  },
+                  {
+                    "id": "seli8iebyqq97K41J",
+                    "name": "RST",
+                    "color": "grayBright"
+                  },
+                  {
+                    "id": "selwStKe3981DImVq",
+                    "name": "PMD",
+                    "color": "yellowBright"
+                  },
+                  {
+                    "id": "sel0hCxCTCNjtXVJR",
+                    "name": "DUO",
+                    "color": "tealBright"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldpXuKktJ6o53j72",
+          "name": "Product Type (from Producten) (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldQi8DmwA4YPAJE8",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selnlPUzG1sGWRO19",
+                    "name": "12",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selqmBJv4wVGpXXkg",
+                    "name": "6",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selcxxpgBgIwPVTbr",
+                    "name": "24",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selb0KYV1WiuW5Ml7",
+                    "name": "1",
+                    "color": "greenLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldgQqWFtUTQilBiy",
+          "name": "Reinigingfrequentie (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldG8ysqNM8Mn9r2D",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selBy5rttphApFOB4",
+                    "name": "Maandelijks",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selpprmej6O7JW0pl",
+                    "name": "Jaarlijks",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selzvqDFEuY2pCugz",
+                    "name": "Kwartaal",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selLJ0xgidVX2nMTm",
+                    "name": "Eenmalig",
+                    "color": "greenLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldZyJ21RrsFnrK1x",
+          "name": "Betaalfrequentie (from Subscriptions)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl1jmdf9hGfkktl7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldJVbZIzoA54QV4L"
+          },
+          "id": "fld54Y09or8T0fbQL",
+          "name": "Invoice Lines"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldbATYQZzht7DPlA",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldYQbP4Nok80Qlgy",
+          "name": "Deals (from Subscriptions)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbliTpehHVMVJhbtZ",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldW7bRQE0z9NYIbb"
+          },
+          "id": "fldmB9HVCI2D1XzfZ",
+          "name": "Stickers"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldrqtVE5gW4IvdE4",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld5wYeE5wJbUrIOR",
+          "name": "Volledige Naam (from Contact) (from Subscriptions)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblrue57PYObD8zie",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldL5AT7j5YgdgdIy"
+          },
+          "id": "fld2ffBcVTLZKUEV0",
+          "name": "Adres-Product Koppeling"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldXHNLCpSbxKseOa",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldoLxZdgXuSFedsV",
+          "name": "Adres"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fldt6TEhFz9VcTlue",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selca91b3D2eLsq9G",
+                    "name": "In Wacht",
+                    "color": "yellowBright"
+                  },
+                  {
+                    "id": "sellTKtakXmVsTfZ2",
+                    "name": "Gepland",
+                    "color": "greenLight1"
+                  },
+                  {
+                    "id": "sel15DpmdgKNA3Vdu",
+                    "name": "Actief",
+                    "color": "blueBright"
+                  },
+                  {
+                    "id": "seltdjwiLA0BovHNm",
+                    "name": "Geannuleerd",
+                    "color": "orangeBright"
+                  },
+                  {
+                    "id": "sellXoXvVLCiwG0G8",
+                    "name": "Opgezegd",
+                    "color": "redBright"
+                  },
+                  {
+                    "id": "seloJpEHN2TUrRchX",
+                    "name": "Dubbele Order",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selW3wWhuapHT9PIP",
+                    "name": "Niet Wasbaar",
+                    "color": "pinkLight1"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldk7Jenrputtj9al",
+          "name": "Status (from Subscriptions)"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "{fldxdRG2yM4o6MoF0} & \"x \" & {fldJmaRTylOYnpbbG} & \" reiniging (\" & {fldgQqWFtUTQilBiy} & \"x per jaar)\"",
+            "referencedFieldIds": [
+              "fldxdRG2yM4o6MoF0",
+              "fldJmaRTylOYnpbbG",
+              "fldgQqWFtUTQilBiy"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldIsyAaobtdCoWcM",
+          "name": "Contract Omschrijving Regel"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(\r\n    {fldZyJ21RrsFnrK1x} = 'Eenmalig',\r\n    \r\n\r\n    {fldxdRG2yM4o6MoF0} & \"x \" & \"€\" & {fldHJyrVzfMQbjboI} & \" (eenmalig)\",\r\n    \r\n\r\n    {fldxdRG2yM4o6MoF0} & \"x \" & \"€\" & {fldHJyrVzfMQbjboI} & \" per \" & SWITCH(\r\n        {fldZyJ21RrsFnrK1x},\r\n        'Maandelijks', 'maand',\r\n        'Jaarlijks', 'jaar',\r\n        'Kwartaal', 'kwartaal'\r\n    )\r\n)",
+            "referencedFieldIds": [
+              "fldZyJ21RrsFnrK1x",
+              "fldxdRG2yM4o6MoF0",
+              "fldHJyrVzfMQbjboI"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldVPhFKL4OFqtrMn",
+          "name": "Contract Bedrag Regel"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDjDGQo58fb1Wcc",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldDIOomR1z8ZdjX5"
+          },
+          "id": "flda3sObVTtGPAAm6",
+          "name": "Contracten"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "{fldHJyrVzfMQbjboI} * {fldxdRG2yM4o6MoF0}",
+            "referencedFieldIds": [
+              "fldHJyrVzfMQbjboI",
+              "fldxdRG2yM4o6MoF0"
+            ],
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fld6155e3xJWx5Dvr",
+          "name": "Totaal Bedrag"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "{fldGn2D3Nem1wmUJ1} * {fldxdRG2yM4o6MoF0}",
+            "referencedFieldIds": [
+              "fldGn2D3Nem1wmUJ1",
+              "fldxdRG2yM4o6MoF0"
+            ],
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldU2qNc9ORq80kre",
+          "name": "Totaal Basis Bedrag"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldvKCRUx3ekZPNeb",
+          "name": "Addresses"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJju1mCIb0kI8E1",
+            "fieldIdInLinkedTable": "fld1GWf8qEuwwzX3h",
+            "result": {
+              "type": "date",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                }
+              }
+            }
+          },
+          "id": "fldVUWRHDKawTFfrw",
+          "name": "Start Date (from Subscriptions)"
+        },
+        {
+          "type": "autoNumber",
+          "id": "fldpc4kSBModvz8H6",
+          "name": "Item ID"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwU2QxE9DQUXP672",
+          "name": "Grid view",
+          "type": "grid"
+        },
+        {
+          "id": "viwCZsyPWBwZwyXqL",
+          "name": "List",
+          "type": "levels"
+        }
+      ]
+    },
+    {
+      "id": "tblLJvEBgsLj78wFv",
+      "name": "Invoices",
+      "primaryFieldId": "fldwPIG7BwPw2cfQT",
+      "fields": [
+        {
+          "type": "autoNumber",
+          "id": "fldwPIG7BwPw2cfQT",
+          "name": "Invoice Number"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldjVbFp90yc2LAXE"
+          },
+          "id": "fldwatH6c5At9ejsL",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "flda0XVLHYYImEmX8",
+          "name": "Vervaldatum"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selnfp0vUQpgvuuOf",
+                "name": "Concept",
+                "color": "blueBright"
+              },
+              {
+                "id": "sel5wy8lJwaXtsvkT",
+                "name": "Verzonden",
+                "color": "greenLight1"
+              },
+              {
+                "id": "selJfqkynoqXu2qLQ",
+                "name": "Betaald",
+                "color": "greenBright"
+              },
+              {
+                "id": "selSgfRp31PF3NTqU",
+                "name": "Vervallen",
+                "color": "yellowLight1"
+              },
+              {
+                "id": "selhiBqzPsOWcyjc1",
+                "name": "Geannuleerd",
+                "color": "grayBright"
+              },
+              {
+                "id": "sellpSkaYyPHLYGaM",
+                "name": "Betwist",
+                "color": "redBright"
+              },
+              {
+                "id": "selhbQJbqbgCZVON5",
+                "name": "Gecrediteerd",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selkS7KK574LvYRqF",
+                "name": "Naar Incasso",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selR8UA5ubZDJIwFM",
+                "name": "Afgeboekt",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldm8uIyxRVD0hV6c",
+          "name": "Status"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldjhIm5egwjsAedH",
+          "name": "Subtotaal"
+        },
+        {
+          "type": "percent",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldEz9Nd47UPPIYdt",
+          "name": "BTW Percentage"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldonUuTzlfj2q8C6",
+          "name": "BTW"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldk86vSEGzBWlsGb",
+          "name": "Totaal"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fld7iGdbE2y4Cndnr",
+          "name": "Factuur Datum"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldaKbC4QpMfSi7MX",
+          "name": "Mollie Payment Id"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            }
+          },
+          "id": "flddkr7AVxaP9Td2d",
+          "name": "Periode Start"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            }
+          },
+          "id": "flddmg6t93dbs4kyP",
+          "name": "Periode Eind"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selPUcrmPJmUxZawi",
+                "name": "Factuur",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selmtA0ROsOnOFjRD",
+                "name": "Creditnota",
+                "color": "cyanLight2"
+              }
+            ]
+          },
+          "id": "fld4hmsNPBEejAjAa",
+          "name": "Factuur Type"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldLVHh5agwALtOQl"
+          },
+          "id": "fldHhVZXA2qiXNvjo",
+          "name": "Originele Factuur"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selATT2Mg6LLIGCI3",
+                "name": "Pending",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selKL039HnrJvrunm",
+                "name": "Paid",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selH91x8Oh9kVRWFo",
+                "name": "Failed",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selsTHIz27f5T6NvD",
+                "name": "Charge Back",
+                "color": "greenLight2"
+              },
+              {
+                "id": "seldpavceQbQdH1OB",
+                "name": "Retry",
+                "color": "yellowLight2"
+              }
+            ]
+          },
+          "id": "fldj52KQfX3AQLBHp",
+          "name": "SEPA Status"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fld9dsDTItiNtizmi",
+          "name": "SEPA Pogingen"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldyCCZ5onxiMJdvj",
+          "name": "Storno Code"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld9H11JVIM7ulud7",
+          "name": "Storno Reden"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblAslC2uUO5eiMvL",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldDQjfbSK8gS9Lzf"
+          },
+          "id": "fldcHOUMRgnjQ0l2a",
+          "name": "Mollie Mandate Id"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selOSsoWQPeLsYW7G",
+                "name": "SEPA Incasso",
+                "color": "blueLight2"
+              },
+              {
+                "id": "seltMXlPbCnILBLd3",
+                "name": "Factuur per post",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selWie4uZ7nDnoXS0",
+                "name": "Factuur per e-mail",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selhu22WnVi553Rrh",
+                "name": "Ideal (website)",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selGUJ2wHmODz8BuV",
+                "name": "Ideal (e-mail)",
+                "color": "yellowLight2"
+              },
+              {
+                "id": "selyKGhiozouWK7aA",
+                "name": "Credit",
+                "color": "orangeLight2"
+              }
+            ]
+          },
+          "id": "fldrugWbFkTvBn8wa",
+          "name": "Betaalmethode"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fld5xmhJATftfD09F",
+          "name": "Betaald Bedrag"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldjyBseqMhtB52KZ",
+          "name": "Volgende SEPA Poging"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldjKBGACCvn0Mfpo",
+          "name": "Betaald Op"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldIrfrWVaygqRY4t",
+          "name": "Storno Ontvangen Op"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl1jmdf9hGfkktl7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldSwrnnIlBm0buYL"
+          },
+          "id": "fldRrF11TJds1Ld5B",
+          "name": "Invoice Lines"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblbg7W8lk6EEEzPz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldE4i4HY7vjikqMM"
+          },
+          "id": "fldMYKAWi4KznfpVg",
+          "name": "Contacts"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl62jTA5dEqxyiGw",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldfoVTIHUtWG1zHX"
+          },
+          "id": "fldvmXqx0KFaxzQ8w",
+          "name": "Invoice Batches"
+        },
+        {
+          "type": "url",
+          "id": "fldZUo2A2odoZl3l7",
+          "name": "Payment Link"
+        },
+        {
+          "type": "multipleAttachments",
+          "options": {
+            "isReversed": false
+          },
+          "id": "fldjc8oeGkitq5XlA",
+          "name": "Payment QR Code"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selrPVRKpZ5wHRQ2w",
+                "name": "Nog niet verzonden",
+                "color": "cyanLight1"
+              },
+              {
+                "id": "selleJLXjyQtTpCVP",
+                "name": "Verzonden naar Mollie",
+                "color": "greenBright"
+              },
+              {
+                "id": "selRb94rWv5bhe1sz",
+                "name": "Fout bij verzenden",
+                "color": "redBright"
+              }
+            ]
+          },
+          "id": "fldAgkVwUm0P7sXp6",
+          "name": "Mollie Status"
+        },
+        {
+          "type": "multilineText",
+          "id": "fld3vfZB85ZMJNjY4",
+          "name": "Mollie Error"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selK6S87BMwechDcd",
+                "name": "In Wachtrij",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selszbA02oKm8BKL4",
+                "name": "Wordt Verwerkt",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "seltODpk2UyeHj9hK",
+                "name": "Verwerkt",
+                "color": "tealLight2"
+              },
+              {
+                "id": "seljokVhZ5v0x98YX",
+                "name": "Mislukt",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selg28LWhLB6HacrA",
+                "name": "Teveel Requests",
+                "color": "yellowLight2"
+              }
+            ]
+          },
+          "id": "fldpNIigZk6CMKsFO",
+          "name": "Mollie Send Status"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fld7nmVWTWtquYHWr",
+          "name": "Process At"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(AND({fld7nmVWTWtquYHWr}, {fldpNIigZk6CMKsFO} = 'In Wachtrij', IS_AFTER(NOW(), DATEADD({fld7nmVWTWtquYHWr}, {fldvNMBbNotfcsHfx}))), TRUE(), FALSE())",
+            "referencedFieldIds": [
+              "fld7nmVWTWtquYHWr",
+              "fldpNIigZk6CMKsFO",
+              "fldvNMBbNotfcsHfx"
+            ],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldDXymwee4bSdhHu",
+          "name": "Mollie Send Trigger",
+          "description": "Determines when to trigger the Mollie payment send process based on the Process At date, Mollie Send Status, and Mollie Delay from the Invoice Batches table."
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldvmXqx0KFaxzQ8w",
+            "fieldIdInLinkedTable": "fldJGKqYBvn8Mwac4",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldvNMBbNotfcsHfx",
+          "name": "Mollie Delay (from Invoice Batches)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldwatH6c5At9ejsL",
+            "fieldIdInLinkedTable": "fldG8ysqNM8Mn9r2D",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selBy5rttphApFOB4",
+                    "name": "Maandelijks",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selpprmej6O7JW0pl",
+                    "name": "Jaarlijks",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selzvqDFEuY2pCugz",
+                    "name": "Kwartaal",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selLJ0xgidVX2nMTm",
+                    "name": "Eenmalig",
+                    "color": "greenLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "flderhXZroimvYHNQ",
+          "name": "Betaalfrequentie (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcHOUMRgnjQ0l2a",
+            "fieldIdInLinkedTable": "fld80COy47zuKKVOl",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldIb8NgXz8kf3Ib2",
+          "name": "SEPA Mandaat ID (from Mollie Mandate Id)"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fld4T4fr10TEetm3c",
+          "name": "Created"
+        },
+        {
+          "type": "lastModifiedTime",
+          "options": {
+            "isValid": true,
+            "referencedFieldIds": [],
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "iso",
+                  "format": "YYYY-MM-DD"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldtPSSFy2e6h2uF7",
+          "name": "Last Modified"
+        },
+        {
+          "type": "createdBy",
+          "id": "fldb4Nz2MEyORBC8R",
+          "name": "Created By"
+        },
+        {
+          "type": "lastModifiedBy",
+          "id": "fld1YCMXFJb6OJFY7",
+          "name": "Last Modified By"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldHhVZXA2qiXNvjo"
+          },
+          "id": "fldLVHh5agwALtOQl",
+          "name": "From field: Originele Factuur"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldvmXqx0KFaxzQ8w",
+            "fieldIdInLinkedTable": "fld3RYGnTuuzsUXFV",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "seluUvkO3gSvcKTCX",
+                    "name": "Klaar voor verzending",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selMq5sG2bo9CpIad",
+                    "name": "Verwerken",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selWRcaUTL0MYDRip",
+                    "name": "Voltooid",
+                    "color": "tealLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldhnrO724XVZVjWk",
+          "name": "Status (from Invoice Batches)"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwUsqXr3qBivpSMK",
+          "name": "Grid view",
+          "type": "grid"
+        },
+        {
+          "id": "viwaMwZ8jCLt0VH43",
+          "name": "Sturen Mollie",
+          "type": "grid"
+        },
+        {
+          "id": "viwYgjwUO3uZT7w5A",
+          "name": "Per Klant",
+          "type": "levels"
+        },
+        {
+          "id": "viwzs8KeLHt2s3NgW",
+          "name": "Grid 3",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tbl1jmdf9hGfkktl7",
+      "name": "Invoice Lines",
+      "primaryFieldId": "fld2lFivBhAH9i1tX",
+      "fields": [
+        {
+          "type": "multilineText",
+          "id": "fld2lFivBhAH9i1tX",
+          "name": "Description"
+        },
+        {
+          "type": "autoNumber",
+          "id": "fldnWQU24oAIFgoJg",
+          "name": "Line ID"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldTwjXMfhr5O7IoM",
+          "name": "Quantity"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldbzyqWwZm71LfcR",
+          "name": "Unit Price"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fld54Y09or8T0fbQL"
+          },
+          "id": "fldJVbZIzoA54QV4L",
+          "name": "Klant Product"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJVbZIzoA54QV4L",
+            "fieldIdInLinkedTable": "fldGn2D3Nem1wmUJ1",
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldRY9DoL0uNBVsa8",
+          "name": "Basis Prijs (from Klant Product)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJVbZIzoA54QV4L",
+            "fieldIdInLinkedTable": "fldHJyrVzfMQbjboI",
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldUuIrtH7ks72q1x",
+          "name": "Unit Price (from Klant Product)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJVbZIzoA54QV4L",
+            "fieldIdInLinkedTable": "fldxdRG2yM4o6MoF0",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldDeLQ6qBPV4T2EP",
+          "name": "Quantity (from Klant Product)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJVbZIzoA54QV4L",
+            "fieldIdInLinkedTable": "fldEJH8OThnTYCVkX",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldqYG2SnWSMbI801",
+          "name": "Product (from Klant Product)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldRrF11TJds1Ld5B"
+          },
+          "id": "fldSwrnnIlBm0buYL",
+          "name": "Invoices"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldJVbZIzoA54QV4L",
+            "fieldIdInLinkedTable": "fldYQbP4Nok80Qlgy",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fld2J0lGkYROek9nk",
+          "name": "Deals (from Subscriptions) (from Klant Product)"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldMtKxgGUdEc4j6V",
+          "name": "Invoice Month"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwzNXOfNAxU7CM2s",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tbl62jTA5dEqxyiGw",
+      "name": "Invoice Batches",
+      "primaryFieldId": "fldUVfDmWeIPHG8OP",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldUVfDmWeIPHG8OP",
+          "name": "Batch Name"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldvmXqx0KFaxzQ8w"
+          },
+          "id": "fldfoVTIHUtWG1zHX",
+          "name": "Invoices to Send"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "seluUvkO3gSvcKTCX",
+                "name": "Klaar voor verzending",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selMq5sG2bo9CpIad",
+                "name": "Verwerken",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selWRcaUTL0MYDRip",
+                "name": "Voltooid",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fld3RYGnTuuzsUXFV",
+          "name": "Status"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldtkgTtU105CuoDS",
+          "name": "Send Batch"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldmU4TcZe78xHCcS",
+          "name": "Processing Log"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldO0sYolg6bQQmxA",
+          "name": "Date Processed"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(AND({fldtkgTtU105CuoDS}, {fld3RYGnTuuzsUXFV} = 'Klaar voor verzending', IS_AFTER(NOW(), {fldtkgTtU105CuoDS})), TRUE(), FALSE())",
+            "referencedFieldIds": [
+              "fldtkgTtU105CuoDS",
+              "fld3RYGnTuuzsUXFV"
+            ],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldhhkOclXLtHcr5v",
+          "name": "Trigger",
+          "description": "Determines if the batch is ready to be processed based on the Send Batch date and the Status field"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldJGKqYBvn8Mwac4",
+          "name": "Mollie Delay"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwjPrPA0sX7zBLDi",
+          "name": "Grid view",
+          "type": "grid"
+        },
+        {
+          "id": "viwD8q3a5vgtSLd9P",
+          "name": "Verzenden Trigger",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblAslC2uUO5eiMvL",
+      "name": "SEPA Mandates",
+      "primaryFieldId": "fld6cSNktl2k7dqK8",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fld6cSNktl2k7dqK8",
+          "name": "IBAN"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblbg7W8lk6EEEzPz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldo9rLgGfnVUt6gz"
+          },
+          "id": "fldiDmnCydaPJoFhJ",
+          "name": "Contacts"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld80COy47zuKKVOl",
+          "name": "SEPA Mandaat ID"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldOudrZ9BkJUfMot",
+          "name": "BIC"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selOWL075AARrTB9C",
+                "name": "Actief",
+                "color": "blueLight2"
+              },
+              {
+                "id": "seltiY276JCkCowoX",
+                "name": "Inactief",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selpQefbANviBzprI",
+                "name": "Vervallen",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "flds5wTaQXLyahgdA",
+          "name": "SEPA Mandaat Status"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selaqybJuuY6Yo6Hj",
+                "name": "Mollie",
+                "color": "blueLight2"
+              }
+            ]
+          },
+          "id": "fldmgjcNN7vq1JRuw",
+          "name": "Mandaat Type"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblLJvEBgsLj78wFv",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldcHOUMRgnjQ0l2a"
+          },
+          "id": "fldDQjfbSK8gS9Lzf",
+          "name": "Invoices"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld0yjTcIycqcvvTT"
+          },
+          "id": "fldbgWw696FTg6yku",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldbgWw696FTg6yku",
+            "fieldIdInLinkedTable": "fldcblHEWVTYIZY49",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldxTtCtCVJ5JUH5r",
+          "name": "Contact (from Subscriptions)"
+        },
+        {
+          "type": "singleLineText",
+          "id": "flduGkvd0hJR4Dz0i",
+          "name": "Mandate Reference"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwq7Ja8Jc9ptjkJq",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblcVuGCNjUrk08AN",
+      "name": "Products",
+      "primaryFieldId": "fld6ocX9ypSQgdgcV",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE({fld8XH51pcX7CDg8O}, ' - ', {fld1XS7sFJHjaHPZh}, ' - ', {fldLuatO5wbJEkOYz})",
+            "referencedFieldIds": [
+              "fld8XH51pcX7CDg8O",
+              "fld1XS7sFJHjaHPZh",
+              "fldLuatO5wbJEkOYz"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld6ocX9ypSQgdgcV",
+          "name": "Naam"
+        },
+        {
+          "type": "currency",
+          "options": {
+            "precision": 2,
+            "symbol": "€"
+          },
+          "id": "fldCvvYRwopccxNLb",
+          "name": "Basis Prijs"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldhiER1WXQV7CLgN",
+          "name": "Actief"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldTvToGBgn1lScuu",
+          "name": "Expired"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selQdTJ5qJ1DD37j1",
+                "name": "GFT",
+                "color": "greenBright"
+              },
+              {
+                "id": "seli8iebyqq97K41J",
+                "name": "RST",
+                "color": "grayBright"
+              },
+              {
+                "id": "selwStKe3981DImVq",
+                "name": "PMD",
+                "color": "yellowBright"
+              },
+              {
+                "id": "sel0hCxCTCNjtXVJR",
+                "name": "DUO",
+                "color": "tealBright"
+              }
+            ]
+          },
+          "id": "fld8XH51pcX7CDg8O",
+          "name": "Product"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selb95d59GWmwULIe",
+                "name": "Maandelijks",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selvcogqWKTMg3Yvh",
+                "name": "Jaarlijks",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selDoKxGUTipnaCRO",
+                "name": "Kwartaal",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selGmNbtxjODly1ZN",
+                "name": "Eenmalig",
+                "color": "cyanLight2"
+              }
+            ]
+          },
+          "id": "fld1XS7sFJHjaHPZh",
+          "name": "Betaalfrequentie"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "sel9Bby4EiKcVIGmn",
+                "name": "24",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selJPfImF9XQOVGNv",
+                "name": "12",
+                "color": "blueLight2"
+              },
+              {
+                "id": "sel2zGR5Axiomm1sU",
+                "name": "6",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selBN7ZBNGfNfrULi",
+                "name": "1",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldLuatO5wbJEkOYz",
+          "name": "Reinigingfrequentie",
+          "description": "Aantal reinigingen per jaar."
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldA0zk1sbddqRkaU",
+          "name": "Discounts"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld6bW32sUUGztOnr",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld04xOgmyxcB4wNh",
+          "name": "Deals"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldE5VSOlMfxPkKgL",
+          "name": "Aantal"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldEJH8OThnTYCVkX"
+          },
+          "id": "fldtVPBkA8ktsXTNo",
+          "name": "Subscription Items"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDqtd3Pwd3Igxy1",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldm0jltxFjYbn9ke"
+          },
+          "id": "fldHsZ3AXHrZe389i",
+          "name": "Deal Lines"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwksHkEaCwotCZqb",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblcQdVv7aQvT3xsD",
+      "name": "Deals",
+      "primaryFieldId": "fldX3DpXYIoJ3HrMj",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldX3DpXYIoJ3HrMj",
+          "name": "Name"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            }
+          },
+          "id": "fldHa9qic02BSz8Mx",
+          "name": "Date"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selaXP8Xm2Hw6ZLhd",
+                "name": "Actief",
+                "color": "greenLight1"
+              },
+              {
+                "id": "selta4qZgK4QVYCYa",
+                "name": "Inactief",
+                "color": "redBright"
+              }
+            ]
+          },
+          "id": "fld5P0b8PqFTw38Xr",
+          "name": "Status"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldZDedRj1kv40m1r",
+          "name": "Min. Aantal Bakken"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "sel8b54bh9oVNpmLs",
+                "name": "12",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selPkK8bXEM52ssqw",
+                "name": "6",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selfsVWbBoUf6fg8n",
+                "name": "1",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selEE0oVrbNNgdt6A",
+                "name": "24",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldANqO17u8lT9sG7",
+          "name": "Reinigingfrequentie"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selahiRYw67CpQF5S",
+                "name": "Maandelijks",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selSTrqbTGUtXq4Y9",
+                "name": "Jaarlijks",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selAwLEgga5bdMLVj",
+                "name": "Kwartaal",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selqa71LZTiDyHrz7",
+                "name": "Eenmalig",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldsizg3uG4GcXl9O",
+          "name": "Betaalfrequentie"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDqtd3Pwd3Igxy1",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldPXrNxkKkRqKBgt"
+          },
+          "id": "fld7bC7hCBF0VW4yB",
+          "name": "Deal Rules"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld7bC7hCBF0VW4yB",
+            "fieldIdInLinkedTable": "fld6Wq9Q5tIJdRQag",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selGq6oeXgnMMzy1Y",
+                    "name": "1",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "sell2JlMuADeTDecY",
+                    "name": "2",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selie8pdjbbHy5pFx",
+                    "name": "3",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selTIec33CYeTl6Es",
+                    "name": "4",
+                    "color": "greenLight2"
+                  },
+                  {
+                    "id": "selvY55SzCbxMumrv",
+                    "name": "5",
+                    "color": "yellowLight2"
+                  },
+                  {
+                    "id": "sel40Bi9yCq1N4SK8",
+                    "name": "6",
+                    "color": "orangeLight2"
+                  },
+                  {
+                    "id": "sel6o2mGvHzaWl579",
+                    "name": "7",
+                    "color": "redLight2"
+                  },
+                  {
+                    "id": "selqR0r5ZeRWy1txa",
+                    "name": "8",
+                    "color": "pinkLight2"
+                  },
+                  {
+                    "id": "selYBUIz0CtfdXIpd",
+                    "name": "9",
+                    "color": "purpleLight2"
+                  },
+                  {
+                    "id": "selegf8fk3u0ITvnL",
+                    "name": "10",
+                    "color": "grayLight2"
+                  },
+                  {
+                    "id": "selMl6cDmGv2qOBkv",
+                    "name": "11",
+                    "color": "blueLight1"
+                  },
+                  {
+                    "id": "selINAL9Vw0ZgpPXI",
+                    "name": "12",
+                    "color": "cyanLight1"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fld06OuA8aHrEzGug",
+          "name": "Months of Application (from Deal Rules)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld7bC7hCBF0VW4yB",
+            "fieldIdInLinkedTable": "fldRUYJULQBOcnmyJ",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldYAmNNWTTVHLXBI",
+          "name": "Applied Discount (from Deal Rules)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld7bC7hCBF0VW4yB",
+            "fieldIdInLinkedTable": "flddlVnPdesxn0ZNX",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldRHYEz3CLBJdP4l",
+          "name": "Order of Application (from Deal Rules)"
+        },
+        {
+          "type": "richText",
+          "id": "fldz5MVm5SP2E8OfI",
+          "name": "Deal Voorwaarden Samenvatting"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldv3P5UPB3d1pXIS",
+          "name": "Order Information"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblQgQF2lhp9Qba1a",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldC5LJqGm8aFy5jF"
+          },
+          "id": "fldjxUEmpKrc6rdUY",
+          "name": "Deal Codes"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "local",
+                  "format": "l"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "flddIQwCMP9itOGSx",
+          "name": "Aangemaakt"
+        },
+        {
+          "type": "createdBy",
+          "id": "fldiIkFfLX1KKiUEd",
+          "name": "Aangemaakt Door"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldbATYQZzht7DPlA"
+          },
+          "id": "fld01gMw2NPMORvK2",
+          "name": "Subscriptions"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwnwuz20lNtc7XRk",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblDqtd3Pwd3Igxy1",
+      "name": "Deal Lines",
+      "primaryFieldId": "fldhouH6mK1jWvSrC",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldhouH6mK1jWvSrC",
+          "name": "Deal Line Name"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblcQdVv7aQvT3xsD",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fld7bC7hCBF0VW4yB"
+          },
+          "id": "fldPXrNxkKkRqKBgt",
+          "name": "Parent Deal"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selGq6oeXgnMMzy1Y",
+                "name": "1",
+                "color": "blueLight2"
+              },
+              {
+                "id": "sell2JlMuADeTDecY",
+                "name": "2",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selie8pdjbbHy5pFx",
+                "name": "3",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selTIec33CYeTl6Es",
+                "name": "4",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selvY55SzCbxMumrv",
+                "name": "5",
+                "color": "yellowLight2"
+              },
+              {
+                "id": "sel40Bi9yCq1N4SK8",
+                "name": "6",
+                "color": "orangeLight2"
+              },
+              {
+                "id": "sel6o2mGvHzaWl579",
+                "name": "7",
+                "color": "redLight2"
+              },
+              {
+                "id": "selqR0r5ZeRWy1txa",
+                "name": "8",
+                "color": "pinkLight2"
+              },
+              {
+                "id": "selYBUIz0CtfdXIpd",
+                "name": "9",
+                "color": "purpleLight2"
+              },
+              {
+                "id": "selegf8fk3u0ITvnL",
+                "name": "10",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selMl6cDmGv2qOBkv",
+                "name": "11",
+                "color": "blueLight1"
+              },
+              {
+                "id": "selINAL9Vw0ZgpPXI",
+                "name": "12",
+                "color": "cyanLight1"
+              }
+            ]
+          },
+          "id": "fld6Wq9Q5tIJdRQag",
+          "name": "Months of Application"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblcVuGCNjUrk08AN",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldHsZ3AXHrZe389i"
+          },
+          "id": "fldm0jltxFjYbn9ke",
+          "name": "Applicable Products"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblB8vapeG7HhGd5c",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldb6IoVlc50lCaop"
+          },
+          "id": "fldRUYJULQBOcnmyJ",
+          "name": "Applied Discount"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldRUYJULQBOcnmyJ",
+            "fieldIdInLinkedTable": "fldNd73JJgtcSXdnC",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selMpyLb8AsWar8EC",
+                    "name": "Percentage Korting",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selIAGsEA6HlekjZQ",
+                    "name": "Bedrag Korting",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selEGX8WnPNeWqW3m",
+                    "name": "Vast Bedrag",
+                    "color": "tealLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldRtJCg1WkwFTyNW",
+          "name": "Korting Type (from Applied Discount)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldRUYJULQBOcnmyJ",
+            "fieldIdInLinkedTable": "fldiCHd7e5qwD14nz",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 2
+              }
+            }
+          },
+          "id": "fldp3VS3N8LdxBStp",
+          "name": "Korting (from Applied Discount)"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "sel1oe8I6Y9nBo8Vz",
+                "name": "Active",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selKdOVXQb1nvwCOa",
+                "name": "Inactive",
+                "color": "cyanLight2"
+              }
+            ]
+          },
+          "id": "fldJ94gAgWUZNzEul",
+          "name": "Status"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "flddlVnPdesxn0ZNX",
+          "name": "Order of Application"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwTnr78J5SRIF2Tm",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblB8vapeG7HhGd5c",
+      "name": "Discounts",
+      "primaryFieldId": "fld2nHPJKsk0Bqxnl",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "SWITCH({fldNd73JJgtcSXdnC},\r\n  \"Percentage Korting\", CONCATENATE(ROUND({fldiCHd7e5qwD14nz}, 0), \"% \"),\r\n  \"Bedrag Korting\", CONCATENATE(\"-€\", {fldiCHd7e5qwD14nz}, \" \"),\r\n  \"Vast Bedrag\", CONCATENATE(\"€\", {fldiCHd7e5qwD14nz}, \" Vast Bedrag \")\r\n)",
+            "referencedFieldIds": [
+              "fldNd73JJgtcSXdnC",
+              "fldiCHd7e5qwD14nz"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld2nHPJKsk0Bqxnl",
+          "name": "Name",
+          "description": "Generates a summary sentence describing the discount type and amount, including the relevant product(s)."
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selMpyLb8AsWar8EC",
+                "name": "Percentage Korting",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selIAGsEA6HlekjZQ",
+                "name": "Bedrag Korting",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selEGX8WnPNeWqW3m",
+                "name": "Vast Bedrag",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldNd73JJgtcSXdnC",
+          "name": "Korting Type"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 2
+          },
+          "id": "fldiCHd7e5qwD14nz",
+          "name": "Korting"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDqtd3Pwd3Igxy1",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldRUYJULQBOcnmyJ"
+          },
+          "id": "fldb6IoVlc50lCaop",
+          "name": "Applied In Deal Lines"
+        }
+      ],
+      "views": [
+        {
+          "id": "viws3sW08UXnYLUou",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblQgQF2lhp9Qba1a",
+      "name": "Deal Codes",
+      "primaryFieldId": "fldFBAnuElajmyAoL",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldFBAnuElajmyAoL",
+          "name": "Campaign Name"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldhDLXpmaUeT7wjE",
+          "name": "Voucher Code"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblcQdVv7aQvT3xsD",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldjxUEmpKrc6rdUY"
+          },
+          "id": "fldC5LJqGm8aFy5jF",
+          "name": "Deal"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "seleUhiddzYqLlLYH",
+                "name": "Actief",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selCCrlzwCdQQETzp",
+                "name": "Verlopen",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selJaxbOtxDk04q58",
+                "name": "Gebruikt",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldrqwU7Gx0TExPxE",
+          "name": "Status"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            }
+          },
+          "id": "fldYL5h5KpE3mDrrl",
+          "name": "Verloop Datum"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                },
+                "timeFormat": {
+                  "name": "12hour",
+                  "format": "h:mma"
+                },
+                "timeZone": "utc"
+              }
+            }
+          },
+          "id": "fldWt28ghlht5trmq",
+          "name": "Created Time"
+        },
+        {
+          "type": "lastModifiedTime",
+          "options": {
+            "isValid": true,
+            "referencedFieldIds": [],
+            "result": {
+              "type": "date",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                }
+              }
+            }
+          },
+          "id": "fldtWgK1eRMWgexKX",
+          "name": "Last Modified Time"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selwMGNqOQdY2mWBh",
+                "name": "Persoonlijk",
+                "color": "blueLight2"
+              },
+              {
+                "id": "seljjHNKJHWKgxl7y",
+                "name": "Algemeen",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selQf844lLDHBrxCy",
+                "name": "Eenmalig",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldYtj76YqB9jsySw",
+          "name": "Type"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwlUMGoPay1HISCs",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblSpIf62JwtCkbAq",
+      "name": "Cleaning Schedule",
+      "primaryFieldId": "fldSLvHIXCnYl57SO",
+      "fields": [
+        {
+          "type": "autoNumber",
+          "id": "fldSLvHIXCnYl57SO",
+          "name": "Schedule ID"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fldsuh8Z29KialK2y",
+          "name": "Scheduled Date"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "sel9BRZ0kEK3PhYu7",
+                "name": "Scheduled",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selT8G2n58lEhC8nD",
+                "name": "Completed",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selVw7eZdarZ68SrH",
+                "name": "Missed",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selZtTe1uwNSKMMpO",
+                "name": "Rescheduled",
+                "color": "grayLight2"
+              }
+            ]
+          },
+          "id": "fldohYfhpDawJnfbw",
+          "name": "Status"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            }
+          },
+          "id": "fld69U24L6PM1KjUS",
+          "name": "Completed Date"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldZio7jpt0uEZi0v",
+          "name": "Notes"
+        }
+      ],
+      "views": [
+        {
+          "id": "viw0ZKGYw1uJf3JUE",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblsaugdvb8NRJBDr",
+      "name": "Email Templates",
+      "primaryFieldId": "fldlDN6Wazjkj8dfP",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldlDN6Wazjkj8dfP",
+          "name": "Template Name"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selAF5lodCRA42frd",
+                "name": "Welcome",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selTdWS7CQpuErSl8",
+                "name": "Invoice",
+                "color": "grayLight2"
+              },
+              {
+                "id": "seleTztAjExGIcASu",
+                "name": "Payment Reminder",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selbrM8MUIxDhv6NT",
+                "name": "Cancellation Confirmation",
+                "color": "grayLight2"
+              },
+              {
+                "id": "sel3gB0tLWx0GASn1",
+                "name": "Renewal Notice",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selcy9rR5iCy36Liz",
+                "name": "Cleaning Reminder",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selcVXKRv7B1qIK4N",
+                "name": "Payment Failed",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selAcvwQoPS5FR3Cb",
+                "name": "Subscription Update",
+                "color": "grayLight2"
+              }
+            ]
+          },
+          "id": "fldSdZvW66s3oxq2t",
+          "name": "Template Type"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld8ead86mABBXnx4",
+          "name": "Subject"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldRKTaqO6civJgYp",
+          "name": "Body HTML"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldaA5BPMnX4YPXOr",
+          "name": "Body Text"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "grayBright"
+          },
+          "id": "fldF5bokffBuM6v5h",
+          "name": "Active"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldYKleRlVxaYeZRl",
+          "name": "Variables"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblPtgtvItVHVisJf",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldXpWNjxvno73jOt"
+          },
+          "id": "fldDTn9SiiQ8vwzYA",
+          "name": "Attachments"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwgBrtCMqU2UHZ0F",
+          "name": "Grid view",
+          "type": "grid"
+        },
+        {
+          "id": "viwJzOUx4oQjrztC2",
+          "name": "Gallery",
+          "type": "gallery"
+        }
+      ]
+    },
+    {
+      "id": "tblUwNEwqPFgzo06U",
+      "name": "SMS Templates",
+      "primaryFieldId": "fldjsBsFffm1Ddc2K",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldjsBsFffm1Ddc2K",
+          "name": "Template Name"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selWLvcAm0vbtvACC",
+                "name": "Welcome",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selF6PvdZuEMJfYPa",
+                "name": "Payment Reminder",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selDSNkdcnqmgezVF",
+                "name": "Cleaning Reminder",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selZJnP2mmeieJFua",
+                "name": "Payment Failed",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selZBK5fPo0Th84vX",
+                "name": "Subscription Update",
+                "color": "grayLight2"
+              }
+            ]
+          },
+          "id": "fldDgVUxFJzn0gatQ",
+          "name": "Template Type"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldu1O8GUCZnnrmpV",
+          "name": "Message"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "grayBright"
+          },
+          "id": "fldgKE5VyNXS78u7P",
+          "name": "Active"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldWYbyiUIiwkmhQE",
+          "name": "Variables"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblPtgtvItVHVisJf",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldFzw2I32jv35TS9"
+          },
+          "id": "fldUOE0Qk2LlsIeOp",
+          "name": "Attachments"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwGoGJS2EbCE5fDX",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblaPtvP9i18uvYvd",
+      "name": "Mollie Webhooks",
+      "primaryFieldId": "fldW23vb58dXSsKly",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldW23vb58dXSsKly",
+          "name": "Mollie ID"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "seleH2l10sFdQTKjb",
+                "name": "Payment",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selnqypEVwdt1VlYG",
+                "name": "Subscription",
+                "color": "grayLight2"
+              },
+              {
+                "id": "selhD1bjlXBdWWv8z",
+                "name": "Mandate",
+                "color": "grayLight2"
+              },
+              {
+                "id": "seln8WNOtSbaaAdQ3",
+                "name": "Customer",
+                "color": "grayLight2"
+              }
+            ]
+          },
+          "id": "fldZRoIknHl2KD5VU",
+          "name": "Resource"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldYQ2Z7fTtoDep0T",
+          "name": "Event Type"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldIwMUo6N6a6wiuP",
+          "name": "Payload"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "Europe/Amsterdam"
+          },
+          "id": "fld11V9VjS6vNH4ib",
+          "name": "Received At"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "grayBright"
+          },
+          "id": "fldwC2MhmxX5kad0C",
+          "name": "Processed"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "iso",
+              "format": "YYYY-MM-DD"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "Europe/Amsterdam"
+          },
+          "id": "fldo3SLdHWGRVnD1a",
+          "name": "Processed At"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldqWCrxkheBHu5TC",
+          "name": "Error"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwhD10dmxeY5psPf",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblKQfkO1GF0cCfhM",
+      "name": "Metadata",
+      "primaryFieldId": "fldFwnAno8FTdHCAJ",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldFwnAno8FTdHCAJ",
+          "name": "Table ID"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldaXVFSJtDXaHgSj",
+          "name": "Table Name"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld6wdQwqigogLkaL",
+          "name": "Field ID"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld974rBjtWv5QMRY",
+          "name": "Field Name"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldVkE14ExENsOjJ6",
+          "name": "Field Description"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldCEMKESArA1Dv94",
+          "name": "Field Type"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldHW0LbYJdG4nBNg",
+          "name": "Field Options Name"
+        }
+      ],
+      "views": [
+        {
+          "id": "viweulLndkOOyv1tL",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tbliTpehHVMVJhbtZ",
+      "name": "Stickers",
+      "primaryFieldId": "fldJKIkbkimiXTCgw",
+      "fields": [
+        {
+          "type": "autoNumber",
+          "id": "fldJKIkbkimiXTCgw",
+          "name": "Sticker ID"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldmB9HVCI2D1XzfZ"
+          },
+          "id": "fldW7bRQE0z9NYIbb",
+          "name": "Subscription Item"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "seliCcV1hJ1QtSBi7",
+                "name": "Te Printen",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selrHE95YlZobhA2B",
+                "name": "Geprint",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selFxdBEEFfU1HJRp",
+                "name": "Verzonden",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldX8EnHJlQxN6dbV",
+          "name": "Status"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selVTGQ7UwY0uvNB8",
+                "name": "GFT",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selUPYYrDjqSwp3Z7",
+                "name": "RST",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selKSJECXNDar9bcR",
+                "name": "PMD",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selnKNUeqgijLuLTh",
+                "name": "DUO",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldfqBFMq58rTVmu1",
+          "name": "Product Type"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldW7bRQE0z9NYIbb",
+            "fieldIdInLinkedTable": "fld5wYeE5wJbUrIOR",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldjIZevZ7VYWYiZg",
+          "name": "Volledige Naam"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selyAAcuMrnsQ7U3H",
+                "name": "Eerste Uitgifte",
+                "color": "blueLight2"
+              },
+              {
+                "id": "sel0EfKa1Kp4FnQny",
+                "name": "Vervanging - Verloren",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selT6Z0szXnwMexzW",
+                "name": "Vervanging - Versleten",
+                "color": "tealLight2"
+              },
+              {
+                "id": "sel0hOqnNVOquBEra",
+                "name": "Handmatig",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fld2kTWMfL2hJFYzj",
+          "name": "Reden"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblrue57PYObD8zie",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldw7dt7VTFyxXWFo"
+          },
+          "id": "fldoNa9ZqMCbcefeD",
+          "name": "Adres-Product Koppeling"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldoNa9ZqMCbcefeD",
+            "fieldIdInLinkedTable": "fldsA1AlSGXw2XY5y",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld2umLIjlRQvSv1Z",
+          "name": "Adres 1 (from Adres) (from Adres-Product Koppeling)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldoNa9ZqMCbcefeD",
+            "fieldIdInLinkedTable": "fld3fTKXIdKtZdAPN",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldHqa3358DYdp8aD",
+          "name": "Adres 2 (from Adres) (from Adres-Product Koppeling)"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldOLYW1m8TlPmX0x",
+          "name": "Date"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwTpyuBddePievYg",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblgFKBTR0wBIjnOC",
+      "name": "Webhook Log",
+      "primaryFieldId": "fldR6Brwq66L4pUY7",
+      "fields": [
+        {
+          "type": "autoNumber",
+          "id": "fldR6Brwq66L4pUY7",
+          "name": "Record ID"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "local",
+                  "format": "l"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldW7vgDQq9UOEWHv",
+          "name": "Created"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldcnbcGrxGmGCNKJ",
+          "name": "Webhook Name"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "seljQRyZ7VvadImmd",
+                "name": "Payment",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selZBzyLcMfBGMZ8o",
+                "name": "Subscription",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selXtIs3W3umtslV9",
+                "name": "Mandate",
+                "color": "tealLight2"
+              },
+              {
+                "id": "sel5EFRDqat0xFf5z",
+                "name": "Customer",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldSQaOjTtUohf4Sq",
+          "name": "Webhook Type"
+        },
+        {
+          "type": "dateTime",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            },
+            "timeFormat": {
+              "name": "24hour",
+              "format": "HH:mm"
+            },
+            "timeZone": "client"
+          },
+          "id": "fldXYWHVQQz06XhJw",
+          "name": "Received Date"
+        },
+        {
+          "type": "multilineText",
+          "id": "fld7ueHb8rhJgI8nQ",
+          "name": "JSON Data"
+        },
+        {
+          "type": "checkbox",
+          "options": {
+            "icon": "check",
+            "color": "greenBright"
+          },
+          "id": "fldkwY0SOQ5An4BM9",
+          "name": "Rerun"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwb4gtE2pjLuWAaY",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblrue57PYObD8zie",
+      "name": "Adres-Product Koppeling",
+      "primaryFieldId": "fld21Ev5QDMqkwIW6",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE({fld1r1GNFtAEUj7r8}, '-', {fldMJllCqCJSlxW2v})",
+            "referencedFieldIds": [
+              "fld1r1GNFtAEUj7r8",
+              "fldMJllCqCJSlxW2v"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld21Ev5QDMqkwIW6",
+          "name": "Koppelings ID",
+          "description": "Returns the record ID of the linked Adres record"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selQmakoGYtIPXfhN",
+                "name": "GFT",
+                "color": "blueLight2"
+              },
+              {
+                "id": "sele5fQjl2gMjciyj",
+                "name": "RST",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "seluaDmphuESIYlgs",
+                "name": "PMD",
+                "color": "tealLight2"
+              },
+              {
+                "id": "sel9MFTU3zMuLXvhf",
+                "name": "DUO",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldMJllCqCJSlxW2v",
+          "name": "Product Type"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld2ffBcVTLZKUEV0"
+          },
+          "id": "fldL5AT7j5YgdgdIy",
+          "name": "Actieve Productregels"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldw7dt7VTFyxXWFo",
+            "fieldIdInLinkedTable": "fldOLYW1m8TlPmX0x",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fld2TmoXxXHpctkcV",
+          "name": "Aantal keer aangevraagd"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld1r1GNFtAEUj7r8",
+            "fieldIdInLinkedTable": "fldqSRiitmGea52Fz",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldsA1AlSGXw2XY5y",
+          "name": "Adres 1 (from Adres)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fld1r1GNFtAEUj7r8",
+            "fieldIdInLinkedTable": "fldoVcsNHvjRLeJHJ",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fld3fTKXIdKtZdAPN",
+          "name": "Adres 2 (from Adres)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbliTpehHVMVJhbtZ",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldoNa9ZqMCbcefeD"
+          },
+          "id": "fldw7dt7VTFyxXWFo",
+          "name": "Stickers"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldw7dt7VTFyxXWFo",
+            "fieldIdInLinkedTable": "fldOLYW1m8TlPmX0x",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "local",
+                  "format": "l"
+                },
+                "timeFormat": {
+                  "name": "24hour",
+                  "format": "HH:mm"
+                },
+                "timeZone": "client"
+              }
+            }
+          },
+          "id": "fldjS7Bc9R15d8hMQ",
+          "name": "Datum Laatste Stickerverzoek"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhFvggmzquxXUSi",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldHUV9k0WRZYudum"
+          },
+          "id": "fld1r1GNFtAEUj7r8",
+          "name": "Adres"
+        }
+      ],
+      "views": [
+        {
+          "id": "viw4VnCXlOmc3sV9w",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblhFvggmzquxXUSi",
+      "name": "Adress-Suffix",
+      "primaryFieldId": "fldfcL3uEGsslrFeT",
+      "fields": [
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "UPPER(CONCATENATE({fldN3DGoc49vRlXbS}, {fldaWF2fPIm9aKdJO}, {fldPrrlV0uEnRbQ6q}, {fldir8Aw0dBxRUHhU}))",
+            "referencedFieldIds": [
+              "fldN3DGoc49vRlXbS",
+              "fldaWF2fPIm9aKdJO",
+              "fldPrrlV0uEnRbQ6q",
+              "fldir8Aw0dBxRUHhU"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldfcL3uEGsslrFeT",
+          "name": "Postcode Id",
+          "description": "Combines the postal code, house number, letter, and addition into a unique address string."
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldOvUsob6QGiAKn0",
+          "name": "Adres"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 0
+          },
+          "id": "fldaWF2fPIm9aKdJO",
+          "name": "Huisnummer"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldir8Aw0dBxRUHhU",
+          "name": "Toevoeging"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldPrrlV0uEnRbQ6q",
+          "name": "Letter"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldN3DGoc49vRlXbS",
+          "name": "Postcode"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldeNYpEs4txYU4GA",
+          "name": "Straat"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldc3wxAr7VdNEWid",
+          "name": "Woonplaats"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld518DsvOW5kYCxI",
+          "name": "Gemeente"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldrsTEJnmQuQVo5b",
+          "name": "Provincie Afkorting"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fld00ck5w20JOTngN",
+          "name": "Provincie"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 6
+          },
+          "id": "fldwY523UZuNIoUf4",
+          "name": "Latitude"
+        },
+        {
+          "type": "number",
+          "options": {
+            "precision": 6
+          },
+          "id": "fldLiIfP7rVbbhh1h",
+          "name": "Longitude"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldnmFpUp4ASKzUH5",
+          "name": "Functie"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(\r\n   AND(LEN({fldPrrlV0uEnRbQ6q}) > 0, LEN({fldir8Aw0dBxRUHhU}) > 0),\r\n   CONCATENATE({fldeNYpEs4txYU4GA}, \" \", {fldaWF2fPIm9aKdJO}, \"-\", {fldir8Aw0dBxRUHhU}, \"-\", {fldPrrlV0uEnRbQ6q}),\r\n   IF(\r\n      LEN({fldir8Aw0dBxRUHhU}) > 0,\r\n      CONCATENATE({fldeNYpEs4txYU4GA}, \" \", {fldaWF2fPIm9aKdJO}, \"-\", {fldir8Aw0dBxRUHhU}),\r\n      IF(\r\n         LEN({fldPrrlV0uEnRbQ6q}) > 0,\r\n         CONCATENATE({fldeNYpEs4txYU4GA}, \" \", {fldaWF2fPIm9aKdJO}, \"-\", {fldPrrlV0uEnRbQ6q}),\r\n         CONCATENATE({fldeNYpEs4txYU4GA}, \" \", {fldaWF2fPIm9aKdJO})\r\n      )\r\n   )\r\n)",
+            "referencedFieldIds": [
+              "fldPrrlV0uEnRbQ6q",
+              "fldir8Aw0dBxRUHhU",
+              "fldeNYpEs4txYU4GA",
+              "fldaWF2fPIm9aKdJO"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldqSRiitmGea52Fz",
+          "name": "Adres 1",
+          "description": "Combines the street name, house number, addition, and letter into a single formatted address string."
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE({fldN3DGoc49vRlXbS}, ', ', {fldc3wxAr7VdNEWid})",
+            "referencedFieldIds": [
+              "fldN3DGoc49vRlXbS",
+              "fldc3wxAr7VdNEWid"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldoVcsNHvjRLeJHJ",
+          "name": "Adres 2",
+          "description": "Combines the postal code and city into a formatted address string."
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldp7xgjC1E8VFmsM",
+          "name": "Nummeridentificatie"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhlHONZak8QYqDz",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldB86vok2TjNK2Bv"
+          },
+          "id": "fldgH9oVwwQEdyBKF",
+          "name": "Addresses"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldoNavjXkMKorWCt",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblrue57PYObD8zie",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld1r1GNFtAEUj7r8"
+          },
+          "id": "fldHUV9k0WRZYudum",
+          "name": "Adres-Product Koppeling"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwPbZ04GPDPygvFu",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblPtgtvItVHVisJf",
+      "name": "Attachments",
+      "primaryFieldId": "fld2h01nLYubOs5ZG",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fld2h01nLYubOs5ZG",
+          "name": "Attachment Name"
+        },
+        {
+          "type": "multipleAttachments",
+          "options": {
+            "isReversed": true
+          },
+          "id": "flddWHBbwVs9lj35r",
+          "name": "File"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldR7QICntkZ8kGky",
+          "name": "Description"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblsaugdvb8NRJBDr",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldDTn9SiiQ8vwzYA"
+          },
+          "id": "fldXpWNjxvno73jOt",
+          "name": "Linked Email Template"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblUwNEwqPFgzo06U",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldUOE0Qk2LlsIeOp"
+          },
+          "id": "fldFzw2I32jv35TS9",
+          "name": "Linked SMS Template"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                },
+                "timeFormat": {
+                  "name": "12hour",
+                  "format": "h:mma"
+                },
+                "timeZone": "utc"
+              }
+            }
+          },
+          "id": "fld9Uh3YZShIDuBHq",
+          "name": "Created Date"
+        },
+        {
+          "type": "lastModifiedTime",
+          "options": {
+            "isValid": true,
+            "referencedFieldIds": [],
+            "result": {
+              "type": "date",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                }
+              }
+            }
+          },
+          "id": "fld2uZ2yu77qgjSch",
+          "name": "Last Modified Date"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "MID({flddWHBbwVs9lj35r}, FIND(\"(\", {flddWHBbwVs9lj35r}) + 1, FIND(\")\", {flddWHBbwVs9lj35r}) - FIND(\"(\", {flddWHBbwVs9lj35r}) - 1)",
+            "referencedFieldIds": [
+              "flddWHBbwVs9lj35r"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldbPf43OeweWTiJC",
+          "name": "File Name",
+          "description": "Extracts the file name from the File field, which contains a URL with the file name enclosed in parentheses."
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldupsWEB8zPrTi2X"
+          },
+          "id": "fldXmoKndFXE2WThi",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblDjDGQo58fb1Wcc",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fldesXvnh4QQ33FzM"
+          },
+          "id": "flddPAIrf9sv1eryC",
+          "name": "Contracten"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwYiuMfUyT3gDrYk",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblDjDGQo58fb1Wcc",
+      "name": "Contracten",
+      "primaryFieldId": "fldIM8xLmrePnaI3Z",
+      "fields": [
+        {
+          "type": "singleLineText",
+          "id": "fldIM8xLmrePnaI3Z",
+          "name": "Contract ID"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblPtgtvItVHVisJf",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "flddPAIrf9sv1eryC"
+          },
+          "id": "fldesXvnh4QQ33FzM",
+          "name": "PDF - Achtergrond"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldesXvnh4QQ33FzM",
+            "fieldIdInLinkedTable": "flddWHBbwVs9lj35r",
+            "result": {
+              "type": "multipleAttachments",
+              "options": {
+                "isReversed": true
+              }
+            }
+          },
+          "id": "fldwOWUHqGH1TTi5j",
+          "name": "File (from PDF - Achtergrond)"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selfmxTqkkpokd5wz",
+                "name": "Concept",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selmRHYOeXLtvPidQ",
+                "name": "Gegenereerd",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selB4ty2y4AmmGo75",
+                "name": "Verzonden",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fld4aTW6qMdmRl9ho",
+          "name": "Status"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldtfhayR2M52Epg1"
+          },
+          "id": "fldcAj1IAu73E0AOw",
+          "name": "Subscriptions"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fld0yjTcIycqcvvTT",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fld3sqrrYWDoDx1V9",
+          "name": "PDF - IBAN (SEPA Mandaat)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldlwG96ZHkWPUkkJ",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selkPe2cnmBKLrrDF",
+                    "name": "Maand",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selzcrCPnC0svhDra",
+                    "name": "Jaar",
+                    "color": "cyanLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldPmZu6PQgDNOGI5",
+          "name": "PDF - Contractduur"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldQi8DmwA4YPAJE8",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selnlPUzG1sGWRO19",
+                    "name": "12",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selqmBJv4wVGpXXkg",
+                    "name": "6",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selcxxpgBgIwPVTbr",
+                    "name": "24",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selb0KYV1WiuW5Ml7",
+                    "name": "1",
+                    "color": "greenLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldcjj4l2tLi6SbIF",
+          "name": "Reinigingfrequentie (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldG8ysqNM8Mn9r2D",
+            "result": {
+              "type": "singleSelect",
+              "options": {
+                "choices": [
+                  {
+                    "id": "selBy5rttphApFOB4",
+                    "name": "Maandelijks",
+                    "color": "blueLight2"
+                  },
+                  {
+                    "id": "selpprmej6O7JW0pl",
+                    "name": "Jaarlijks",
+                    "color": "cyanLight2"
+                  },
+                  {
+                    "id": "selzvqDFEuY2pCugz",
+                    "name": "Kwartaal",
+                    "color": "tealLight2"
+                  },
+                  {
+                    "id": "selLJ0xgidVX2nMTm",
+                    "name": "Eenmalig",
+                    "color": "greenLight2"
+                  }
+                ]
+              }
+            }
+          },
+          "id": "fldSfnqBJ5vYWqWll",
+          "name": "Betaalfrequentie (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldAiFe0txmGZU8xA",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldnxOd4omarGKMmz",
+          "name": "PDF - Huisnr"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldYcretL5Xq0tAjZ",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldyNXNVTcEeKQrUe",
+          "name": "Toevoeging"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldI6XO34KjPpaH5N",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldAHhTgT9kCMp4IK",
+          "name": "Letter"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldmwLchaWQkblgI2",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldEDjl5zL95F5erM",
+          "name": "PDF - Postcode"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fld2dybSeAPGa0jvm",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldbR8uCcfwhyOHFW",
+          "name": "PDF - Straat"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldFFiPxtKlHv0plD",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldEZVpBwhuHSL4kT",
+          "name": "PDF - Woonplaats"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldYZvY4ih7snGgyl",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldtE4NzApvvbdDF3",
+          "name": "PDF - Voornaam"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldKCpfTB4hoIg77A",
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldipwjn28Zx0gGA1",
+          "name": "Achternaam (from Contact) (from Subscriptions)"
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldi3q0wbnpH7ej6v",
+            "result": {
+              "type": "number",
+              "options": {
+                "precision": 0
+              }
+            }
+          },
+          "id": "fldWmrQVGT81BQcuf",
+          "name": "Total Quantity (from Subscriptions)"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7cGZKAyAXeBue7",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "flda3sObVTtGPAAm6"
+          },
+          "id": "fldDIOomR1z8ZdjX5",
+          "name": "Subscription Items"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldDIOomR1z8ZdjX5",
+            "fieldIdInLinkedTable": "fldIsyAaobtdCoWcM",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldI71TavFGhriLJ7",
+          "name": "PDF - Contract Omschrijving Regel"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldDIOomR1z8ZdjX5",
+            "fieldIdInLinkedTable": "fldVPhFKL4OFqtrMn",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldOin8eFwFqSDt35",
+          "name": "PDF - Contract Bedrag Regel"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldDIOomR1z8ZdjX5",
+            "fieldIdInLinkedTable": "fld6155e3xJWx5Dvr",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldUBInfJ4KE6dD4q",
+          "name": "PDF - Totaal Bedrag"
+        },
+        {
+          "type": "rollup",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldDIOomR1z8ZdjX5",
+            "fieldIdInLinkedTable": "fldU2qNc9ORq80kre",
+            "referencedFieldIds": [],
+            "result": {
+              "type": "currency",
+              "options": {
+                "precision": 2,
+                "symbol": "€"
+              }
+            }
+          },
+          "id": "fldq5oRTxWcoESVsJ",
+          "name": "Totaal Basis Bedrag Rollup (from Subscription Items)"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(\r\n    FIND('SEPA Incasso', ARRAYJOIN({fldSfnqBJ5vYWqWll})),\r\n    \"Je hebt Klikokoning toestemming gegeven om het bedrag \" & \r\n    SWITCH(\r\n        {fldSfnqBJ5vYWqWll},\r\n        'Maandelijks', 'maandelijks',\r\n        'Jaarlijks', 'jaarlijks',\r\n        'Kwartaal', 'per kwartaal',\r\n        'Eenmalig', 'eenmalig'\r\n    ) & \r\n    \" van het rekeningnummer \" & \r\n    ARRAYJOIN({fld3sqrrYWDoDx1V9}) & \r\n    \" af te schrijven.\",\r\n    \"\"\r\n)",
+            "referencedFieldIds": [
+              "fldSfnqBJ5vYWqWll",
+              "fld3sqrrYWDoDx1V9"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldVqDFYnIanDy8On",
+          "name": "PDF - Mandaat"
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF({fldyNXNVTcEeKQrUe}, {fldyNXNVTcEeKQrUe}, \"\") & \r\nIF(AND({fldyNXNVTcEeKQrUe}, {fldAHhTgT9kCMp4IK}), \"-\", \"\") & \r\nIF({fldAHhTgT9kCMp4IK}, {fldAHhTgT9kCMp4IK}, \"\")",
+            "referencedFieldIds": [
+              "fldyNXNVTcEeKQrUe",
+              "fldAHhTgT9kCMp4IK"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldX3REv9RHE6YSz0",
+          "name": "PDF - Toevoeging",
+          "description": "Generates an address suffix by using the 'Toevoeging' field if it exists, or the 'Letter' field if 'Toevoeging' does not exist. If both fields have values, it concatenates them with a '-' in between."
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldBJVBuzllsnqdz0",
+          "name": "PDF - Totaal",
+          "description": "Generates a formatted string that displays the total amount and payment frequency for the contract, taking into account any changes in the base amount."
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "IF(\r\n    {fldSfnqBJ5vYWqWll} = 'Eenmalig',\r\n\r\n\r\n    IF(\r\n        {fldq5oRTxWcoESVsJ} = {fldUBInfJ4KE6dD4q},\r\n        \"Eenmalig bedrag van €\" & {fldUBInfJ4KE6dD4q},\r\n        \"Van €\" & {fldq5oRTxWcoESVsJ} & \" voor een eenmalig bedrag van €\" & {fldUBInfJ4KE6dD4q}\r\n    ),\r\n\r\n    IF(\r\n        {fldq5oRTxWcoESVsJ} = {fldUBInfJ4KE6dD4q},\r\n        \"Totaal €\" & {fldUBInfJ4KE6dD4q} & \" per \" & SWITCH({fldSfnqBJ5vYWqWll}, 'Maandelijks', 'maand', 'Jaarlijks', 'jaar', 'Kwartaal', 'kwartaal'),\r\n        \"Van €\" & {fldq5oRTxWcoESVsJ} & \" naar €\" & {fldUBInfJ4KE6dD4q} & \" per \" & SWITCH({fldSfnqBJ5vYWqWll}, 'Maandelijks', 'maand', 'Jaarlijks', 'jaar', 'Kwartaal', 'kwartaal')\r\n    )\r\n)",
+            "referencedFieldIds": [
+              "fldSfnqBJ5vYWqWll",
+              "fldq5oRTxWcoESVsJ",
+              "fldUBInfJ4KE6dD4q"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldHasM4OA4BT2XI7",
+          "name": "PDF - Totaal copy",
+          "description": "Generates a formatted string that displays the total amount and payment frequency for the contract, taking into account any changes in the base amount."
+        },
+        {
+          "type": "multipleLookupValues",
+          "options": {
+            "isValid": true,
+            "recordLinkFieldId": "fldcAj1IAu73E0AOw",
+            "fieldIdInLinkedTable": "fldbATYQZzht7DPlA",
+            "result": {
+              "type": "multipleRecordLinks",
+              "options": {
+                "isReversed": false,
+                "prefersSingleRecordLink": false
+              }
+            }
+          },
+          "id": "fldL47Rc37JBxAcoa",
+          "name": "Deals (from Subscriptions)"
+        },
+        {
+          "type": "richText",
+          "id": "fld2mCyvUk7q7U7rO",
+          "name": "PDF - Voorwaarden Tekst"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldSikuq9Pb6IB4Tx",
+          "name": "PDF - Dealnaam",
+          "description": "Generates a string that combines the word 'Abonnement:' with the value from the 'Deals' field."
+        },
+        {
+          "type": "formula",
+          "options": {
+            "isValid": true,
+            "formula": "CONCATENATE(\"Abonnement: \", {fldL47Rc37JBxAcoa})",
+            "referencedFieldIds": [
+              "fldL47Rc37JBxAcoa"
+            ],
+            "result": {
+              "type": "singleLineText"
+            }
+          },
+          "id": "fldzloUfArgUPysUz",
+          "name": "PDF - Dealnaam copy",
+          "description": "Generates a string that combines the word 'Abonnement:' with the value from the 'Deals' field."
+        }
+      ],
+      "views": [
+        {
+          "id": "viwVHr1RAvBAQchx7",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tblTWwcSV3U0nq2aW",
+      "name": "Tickets",
+      "primaryFieldId": "fldb5ZIdd8h82uXeI",
+      "fields": [
+        {
+          "type": "autoNumber",
+          "id": "fldb5ZIdd8h82uXeI",
+          "name": "Ticket ID"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "sel87pLpyDFal7nh5",
+                "name": "Open",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selRotQsjms3H62Jy",
+                "name": "In Progress",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selAqAXXnMyoiybzS",
+                "name": "Pending Customer",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selBymkSw4KYof38f",
+                "name": "Resolved",
+                "color": "greenLight2"
+              },
+              {
+                "id": "selTRL3P58Y30p2D9",
+                "name": "Closed",
+                "color": "yellowLight2"
+              }
+            ]
+          },
+          "id": "fldvVf6FXIYF7r2vS",
+          "name": "Status"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldHKncK9eyAX89fM",
+          "name": "Subject"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldiWfVyQn9s62z4x",
+          "name": "Body"
+        },
+        {
+          "type": "email",
+          "id": "fld090AoLkjnnnQlL",
+          "name": "From Email"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblbg7W8lk6EEEzPz",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldMUpCUIdXltExPs"
+          },
+          "id": "fld54JqqobU6IfnM9",
+          "name": "Contact"
+        },
+        {
+          "type": "createdTime",
+          "options": {
+            "result": {
+              "type": "dateTime",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                },
+                "timeFormat": {
+                  "name": "12hour",
+                  "format": "h:mma"
+                },
+                "timeZone": "utc"
+              }
+            }
+          },
+          "id": "fld7hmhZTvaArTpnw",
+          "name": "Date Received"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selYEiqp9gtOos1dk",
+                "name": "High",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selhJ0wUSe5ATmizD",
+                "name": "Medium",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selpqSarHWYFt1Uah",
+                "name": "Low",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fld0RhCdDgo9WMsdi",
+          "name": "Priority"
+        },
+        {
+          "type": "singleCollaborator",
+          "id": "fldmOd4k4uk0EbuV0",
+          "name": "Assigned To"
+        },
+        {
+          "type": "multipleAttachments",
+          "options": {
+            "isReversed": true
+          },
+          "id": "fldcOEDHg3osLrYnX",
+          "name": "Attachments"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblhkHp0boehNpQuE",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldoFcWN2JvXqaHN1"
+          },
+          "id": "fldX6mkWXc2KXfUvA",
+          "name": "Related Subscription"
+        },
+        {
+          "type": "lastModifiedTime",
+          "options": {
+            "isValid": true,
+            "referencedFieldIds": [],
+            "result": {
+              "type": "date",
+              "options": {
+                "dateFormat": {
+                  "name": "us",
+                  "format": "M/D/YYYY"
+                }
+              }
+            }
+          },
+          "id": "fldrE6Ikz9Krt7S3j",
+          "name": "Last Modified"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tbl7RnYAKM0E3G5TA",
+            "isReversed": false,
+            "prefersSingleRecordLink": false,
+            "inverseLinkFieldId": "fld72HJwpWYhGr692"
+          },
+          "id": "fldCKX4cc5BoYzfEe",
+          "name": "Email Outbox"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwEAwAnsLfov02F6",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    },
+    {
+      "id": "tbl7RnYAKM0E3G5TA",
+      "name": "Email Outbox",
+      "primaryFieldId": "fldjoQgOGzEltdLUU",
+      "fields": [
+        {
+          "type": "email",
+          "id": "fldjoQgOGzEltdLUU",
+          "name": "To"
+        },
+        {
+          "type": "email",
+          "id": "fld9iExDhYcHOtXTC",
+          "name": "CC"
+        },
+        {
+          "type": "singleLineText",
+          "id": "fldkgshkJKdmrYJrE",
+          "name": "Subject"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldHA3AWBJEaEYXpN",
+          "name": "Body"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selS1KJEiMqD3cO6d",
+                "name": "Draft",
+                "color": "blueLight2"
+              },
+              {
+                "id": "selsK7mwRbgfhEg3o",
+                "name": "Ready to Send",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "sel3PUTTH3rUmX5cJ",
+                "name": "Sent",
+                "color": "tealLight2"
+              },
+              {
+                "id": "selfXm6BkLl5qHN0F",
+                "name": "Failed",
+                "color": "greenLight2"
+              }
+            ]
+          },
+          "id": "fldT7JKi8Teu4xQ0b",
+          "name": "Status"
+        },
+        {
+          "type": "multipleRecordLinks",
+          "options": {
+            "linkedTableId": "tblTWwcSV3U0nq2aW",
+            "isReversed": false,
+            "prefersSingleRecordLink": true,
+            "inverseLinkFieldId": "fldCKX4cc5BoYzfEe"
+          },
+          "id": "fld72HJwpWYhGr692",
+          "name": "Ticket"
+        },
+        {
+          "type": "date",
+          "options": {
+            "dateFormat": {
+              "name": "local",
+              "format": "l"
+            }
+          },
+          "id": "fld1WMHXM6js3nOmv",
+          "name": "Sent At"
+        },
+        {
+          "type": "multilineText",
+          "id": "fldVjN3ofGm9gxTHm",
+          "name": "Error Message"
+        },
+        {
+          "type": "multipleAttachments",
+          "options": {
+            "isReversed": true
+          },
+          "id": "fldEhi1GEVhyRIcby",
+          "name": "Attachments"
+        },
+        {
+          "type": "singleSelect",
+          "options": {
+            "choices": [
+              {
+                "id": "selRuhS1OJup4ygv7",
+                "name": "High",
+                "color": "blueLight2"
+              },
+              {
+                "id": "sellpS33te9v9K7or",
+                "name": "Medium",
+                "color": "cyanLight2"
+              },
+              {
+                "id": "selO9URG3wUMaQAwk",
+                "name": "Low",
+                "color": "tealLight2"
+              }
+            ]
+          },
+          "id": "fldpAg9MEA3tDPQeU",
+          "name": "Priority"
+        }
+      ],
+      "views": [
+        {
+          "id": "viwXWpgWAQTLuKFEv",
+          "name": "Grid view",
+          "type": "grid"
+        }
+      ]
+    }
+  ]
+}

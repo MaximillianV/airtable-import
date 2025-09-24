@@ -402,6 +402,66 @@ class AirtableService {
       throw error;
     }
   }
+
+  /**
+   * Gets complete schema information for all tables in the base.
+   * This includes table metadata, field definitions, and field types
+   * needed for comprehensive field analysis.
+   * 
+   * @returns {Promise<Object>} Complete schema information with tables and fields
+   * @throws {Error} When API access fails or schema cannot be retrieved
+   */
+  async getSchemaInfo() {
+    if (!this.base) {
+      throw new Error('Not connected to Airtable');
+    }
+
+    console.log('🔍 Getting complete schema information from Airtable Metadata API...');
+
+    try {
+      // Use the Metadata API to get complete schema with field definitions
+      const metadataUrl = `https://api.airtable.com/v0/meta/bases/${this.baseId}/tables`;
+      const response = await fetch(metadataUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid API key - authentication failed');
+      } else if (response.status === 403) {
+        throw new Error('Access denied - check API key permissions');
+      } else if (response.status === 404) {
+        throw new Error('Base not found - check Base ID');
+      } else if (!response.ok) {
+        throw new Error(`Metadata API error: ${response.status} ${response.statusText}`);
+      }
+
+      const metadata = await response.json();
+      
+      if (!metadata || !metadata.tables || !Array.isArray(metadata.tables)) {
+        throw new Error('Invalid response from Metadata API - no tables found');
+      }
+
+      console.log(`✅ Retrieved schema for ${metadata.tables.length} tables`);
+
+      // Return the schema information in the expected format
+      return {
+        baseId: this.baseId,
+        tables: metadata.tables.map(table => ({
+          id: table.id,
+          name: table.name,
+          description: table.description || '',
+          fields: table.fields || []
+        }))
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to get schema info:', error.message);
+      throw new Error(`Failed to retrieve schema information: ${error.message}`);
+    }
+  }
 }
 
 module.exports = AirtableService;
