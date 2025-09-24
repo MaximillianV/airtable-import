@@ -1,7 +1,12 @@
 // Test setup file
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-for-testing';
-process.env.DATABASE_URL = 'sqlite::memory:';
+
+// Use PostgreSQL for tests (same as CI/CD pipeline)
+// If local PostgreSQL is not available, fall back to a test database
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/airtable_import_test';
+process.env.REDIS_URL = 'redis://localhost:6379';
+process.env.REDIS_ENABLED = 'false'; // Disable Redis for unit tests to avoid dependencies
 
 // Mock console.log during tests to reduce noise
 const originalConsoleLog = console.log;
