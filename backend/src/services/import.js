@@ -1,5 +1,5 @@
 const AirtableService = require('./airtable');
-const { ImportDatabaseService } = require('./importDatabase');
+const ImportDatabaseService = require('./importDatabase');
 const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
 class ImportService {
@@ -149,6 +149,11 @@ class ImportService {
         throw new Error(`No records returned from Airtable for table '${tableName}'`);
       }
 
+      // Sanitize table name early to avoid initialization issues
+      // Using snake_case conversion while preserving plural/singular forms from Airtable
+      const sanitizedTableName = sanitizeTableName(tableName, false); // false = preserve plural/singular as-is
+      console.log(`🏷️  Table name conversion: "${tableName}" → "${sanitizedTableName}"`);
+
       if (records.length === 0) {
         this.emitProgress(sessionId, {
           table: tableName,
@@ -169,9 +174,6 @@ class ImportService {
       }
 
       // Check if table already exists and handle based on overwrite flag
-      // Using snake_case conversion while preserving plural/singular forms from Airtable
-      const sanitizedTableName = sanitizeTableName(tableName, false); // false = preserve plural/singular as-is
-      console.log(`🏷️  Table name conversion: "${tableName}" → "${sanitizedTableName}"`);
       const tableAlreadyExists = await this.importDatabaseService.tableExists(sanitizedTableName);
       
       if (tableAlreadyExists && !overwrite) {
@@ -230,8 +232,9 @@ class ImportService {
         const tableSchema = await this.airtableService.getTableSchema(tableName);
         
         // Create table using metadata instead of inferring from records
+        // Use sanitized table name to match the name used for data insertion
         await this.importDatabaseService.createTableFromAirtableMetadata(
-          tableName,
+          sanitizedTableName,
           tableSchema
         );
       }
