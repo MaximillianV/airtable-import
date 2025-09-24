@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { settingsAPI, importAPI } from '../services/api';
 import { ImportSession } from '../types';
+import socketService from '../services/socket';
 
 const Dashboard: React.FC = () => {
   const [sessions, setSessions] = useState<ImportSession[]>([]);
@@ -13,6 +14,37 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    
+    // Connect to Socket.IO for real-time session updates
+    if (!socketService.isConnected()) {
+      socketService.connect();
+    }
+
+    // Listen for session completion events to update the dashboard in real-time
+    const unsubscribeSessionComplete = socketService.onSessionComplete((sessionData) => {
+      console.log('Dashboard received session completion:', sessionData);
+      
+      // Update the sessions list with the completed session data
+      setSessions(prevSessions => {
+        return prevSessions.map(session => {
+          if (session.sessionId === sessionData.sessionId) {
+            return {
+              ...session,
+              status: sessionData.status.toLowerCase(), // Convert COMPLETED/PARTIAL_FAILED to lowercase
+              endTime: sessionData.endTime,
+              processedRecords: sessionData.processedRecords || 0,
+              results: sessionData.results || session.results
+            };
+          }
+          return session;
+        });
+      });
+    });
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribeSessionComplete();
+    };
   }, []);
 
   const loadData = async () => {
@@ -157,29 +189,36 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div style={styles.sessionsList}>
                   {sessions.slice(0, 5).map((session) => (
-                    <div key={session.sessionId} style={styles.sessionCard}>
-                      <div style={styles.sessionHeader}>
-                        <span style={styles.sessionId}>Session: {session.sessionId.slice(-8)}</span>
-                        <span style={{
-                          ...styles.sessionStatus,
-                          color: getStatusColor(session.status)
-                        }}>
-                          {session.status.toUpperCase()}
-                        </span>
+                    <Link 
+                      key={session.sessionId} 
+                      to={`/admin/sessions/${session.sessionId}`}
+                      style={styles.sessionLink}
+                      className="session-link"
+                    >
+                      <div style={styles.sessionCard} className="session-card">
+                        <div style={styles.sessionHeader}>
+                          <span style={styles.sessionId}>Session: {session.sessionId.slice(-8)}</span>
+                          <span style={{
+                            ...styles.sessionStatus,
+                            color: getStatusColor(session.status)
+                          }}>
+                            {session.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div style={styles.sessionDetails}>
+                          <p>Tables: {session.tableNames.join(', ')}</p>
+                          <p>Started: {new Date(session.startTime).toLocaleString()}</p>
+                          {session.endTime && (
+                            <p>Completed: {new Date(session.endTime).toLocaleString()}</p>
+                          )}
+                          {session.results && (
+                            <p>
+                              Results: {Object.values(session.results).filter((r: any) => r.success).length}/{Object.values(session.results).length} successful
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div style={styles.sessionDetails}>
-                        <p>Tables: {session.tableNames.join(', ')}</p>
-                        <p>Started: {new Date(session.startTime).toLocaleString()}</p>
-                        {session.endTime && (
-                          <p>Completed: {new Date(session.endTime).toLocaleString()}</p>
-                        )}
-                        {session.results && (
-                          <p>
-                            Results: {Object.values(session.results).filter((r: any) => r.success).length}/{Object.values(session.results).length} successful
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -192,12 +231,17 @@ const Dashboard: React.FC = () => {
 };
 
 const getStatusColor = (status: string): string => {
-  switch (status) {
+  switch (status.toLowerCase()) {
     case 'completed':
       return '#22c55e';
+    case 'partial_failed':
+    case 'partial-failed':
+      return '#f59e0b'; // Orange for partial failures
+    case 'failed':
     case 'error':
       return '#ef4444';
     case 'running':
+    case 'pending':
       return '#3b82f6';
     default:
       return '#6b7280';
@@ -419,11 +463,22 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '16px',
   },
+  sessionLink: {
+    textDecoration: 'none',
+    color: 'inherit',
+    display: 'block',
+    transition: 'transform 0.2s ease',
+    ':hover': {
+      transform: 'translateY(-2px)',
+    },
+  },
   sessionCard: {
     padding: '16px',
     border: '1px solid #e5e7eb',
     borderRadius: '6px',
     backgroundColor: '#f9fafb',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   sessionHeader: {
     display: 'flex',

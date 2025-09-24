@@ -5,6 +5,7 @@ class SocketService {
   private socket: Socket | null = null;
   private progressCallbacks = new Set<(progress: ImportProgress) => void>();
   private debugLogCallbacks = new Set<(logData: { message: string; data?: any }) => void>();
+  private sessionCompleteCallbacks = new Set<(sessionData: any) => void>();
 
   connect() {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
@@ -36,6 +37,14 @@ class SocketService {
       });
     });
 
+    this.socket.on('session-complete', (sessionData: any) => {
+      console.log('Session completion received:', sessionData);
+      // Call all registered session complete callbacks
+      this.sessionCompleteCallbacks.forEach(callback => {
+        callback(sessionData);
+      });
+    });
+
     this.socket.on('error', (error) => {
       console.error('Socket error:', error);
     });
@@ -50,6 +59,7 @@ class SocketService {
     }
     this.progressCallbacks.clear();
     this.debugLogCallbacks.clear();
+    this.sessionCompleteCallbacks.clear();
   }
 
   joinSession(sessionId: string) {
@@ -87,6 +97,15 @@ class SocketService {
     // Return unsubscribe function
     return () => {
       this.debugLogCallbacks.delete(callback);
+    };
+  }
+
+  onSessionComplete(callback: (sessionData: any) => void) {
+    this.sessionCompleteCallbacks.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      this.sessionCompleteCallbacks.delete(callback);
     };
   }
 

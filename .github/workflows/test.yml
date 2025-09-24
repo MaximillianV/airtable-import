@@ -1,0 +1,470 @@
+name: Test Workflow
+
+on:
+  push:
+    branches: [ main, develop, feature/*, schema-builder-editor ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - unit
+        - integration
+        - e2e
+
+jobs:
+  backend-unit-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airtable_import_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: |
+        echo "📦 Installing backend dependencies..."
+        npm ci
+        echo "✅ Backend dependencies installed"
+
+    - name: Setup test environment
+      working-directory: ./backend
+      run: |
+        echo "🔧 Setting up test environment..."
+        cat > .env << EOF
+        NODE_ENV=test
+        PORT=3001
+        JWT_SECRET=test-jwt-secret-for-ci-pipeline-do-not-use-in-production
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=sqlite::memory:
+        REDIS_URL=redis://localhost:6379
+        REDIS_ENABLED=true
+        EOF
+        echo "✅ Test environment configured"
+
+    - name: Verify Redis connection
+      run: |
+        echo "🔍 Testing Redis connection..."
+        redis-cli -h localhost -p 6379 ping
+        echo "✅ Redis is accessible"
+
+    - name: Run backend unit tests
+      working-directory: ./backend
+      run: |
+        echo "🧪 Running backend unit tests with Jest..."
+        npm test
+      env:
+        NODE_ENV: test
+        DATABASE_URL: sqlite::memory:
+        REDIS_URL: redis://localhost:6379
+
+    - name: Generate test coverage report
+      working-directory: ./backend
+      run: |
+        echo "📊 Generating test coverage report..."
+        npx jest --coverage --coverageReporters=text --coverageReporters=html
+      env:
+        NODE_ENV: test
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: |
+        echo "📦 Installing frontend dependencies..."
+        npm ci
+        echo "✅ Frontend dependencies installed"
+
+    - name: Setup frontend test environment
+      working-directory: ./frontend
+      run: |
+        echo "🔧 Setting up frontend test environment..."
+        cat > .env.test.local << EOF
+        REACT_APP_API_URL=http://localhost:3001/api
+        REACT_APP_SOCKET_URL=http://localhost:3001
+        EOF
+        echo "✅ Frontend test environment configured"
+
+    - name: Run frontend tests
+      working-directory: ./frontend
+      run: |
+        echo "🧪 Running frontend tests with React Testing Library..."
+        npm test -- --coverage --watchAll=false --verbose
+      env:
+        CI: true
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: |
+        echo "🏗️ Building frontend for production..."
+        npm run build
+        echo "✅ Frontend build completed"
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [backend-unit-tests, frontend-tests]
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airtable_import_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Playwright
+      run: |
+        echo "🎭 Installing Playwright for E2E tests..."
+        npm init -y
+        npm install @playwright/test
+        npx playwright install chromium
+        echo "✅ Playwright installed"
+
+    - name: Install project dependencies
+      run: |
+        echo "📦 Installing all project dependencies..."
+        # Backend dependencies
+        cd backend && npm ci && cd ..
+        # Frontend dependencies  
+        cd frontend && npm ci && cd ..
+        echo "✅ All dependencies installed"
+
+    - name: Setup integration test environment
+      run: |
+        echo "🔧 Setting up integration test environment..."
+        
+        # Backend environment
+        cat > backend/.env << EOF
+        NODE_ENV=test
+        PORT=3001
+        JWT_SECRET=integration-test-jwt-secret-do-not-use-in-production
+        ADMIN_EMAIL=admin@example.com
+        ADMIN_PASSWORD=admin123
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import_test
+        REDIS_URL=redis://localhost:6379
+        REDIS_ENABLED=true
+        EOF
+        
+        # Frontend environment
+        cat > frontend/.env.local << EOF
+        REACT_APP_API_URL=http://localhost:3001/api
+        REACT_APP_SOCKET_URL=http://localhost:3001
+        EOF
+        
+        echo "✅ Integration test environment configured"
+
+    - name: Verify service connections
+      run: |
+        echo "🔍 Verifying service connections..."
+        
+        # Test PostgreSQL
+        PGPASSWORD=postgres psql -h localhost -U postgres -d airtable_import_test -c "SELECT version();"
+        echo "✅ PostgreSQL connection verified"
+        
+        # Test Redis
+        redis-cli -h localhost -p 6379 ping
+        echo "✅ Redis connection verified"
+
+    - name: Start backend server
+      run: |
+        echo "🚀 Starting backend server for integration tests..."
+        cd backend
+        npm start > ../backend.log 2>&1 &
+        BACKEND_PID=$!
+        echo $BACKEND_PID > ../backend.pid
+        cd ..
+        
+        # Wait for backend to be ready
+        echo "⏳ Waiting for backend to be ready..."
+        for i in {1..30}; do
+          if curl -f http://localhost:3001/api/health >/dev/null 2>&1; then
+            echo "✅ Backend is ready!"
+            break
+          fi
+          echo "  Attempt $i/30..."
+          sleep 2
+        done
+
+    - name: Start frontend server
+      run: |
+        echo "🚀 Starting frontend server for integration tests..."
+        cd frontend
+        npm start > ../frontend.log 2>&1 &
+        FRONTEND_PID=$!
+        echo $FRONTEND_PID > ../frontend.pid
+        cd ..
+        
+        # Wait for frontend to be ready
+        echo "⏳ Waiting for frontend to be ready..."
+        for i in {1..60}; do
+          if curl -f http://localhost:3000 >/dev/null 2>&1; then
+            echo "✅ Frontend is ready!"
+            break
+          fi
+          echo "  Attempt $i/60..."
+          sleep 3
+        done
+
+    - name: Run integration tests
+      run: |
+        echo "🧪 Running integration tests with Playwright..."
+        npx playwright test tests/e2e/ --reporter=html
+      env:
+        BASE_URL: http://localhost:3000
+        API_URL: http://localhost:3001/api
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+    - name: Upload server logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: server-logs
+        path: |
+          backend.log
+          frontend.log
+        retention-days: 7
+
+    - name: Cleanup servers
+      if: always()
+      run: |
+        echo "🧹 Cleaning up test servers..."
+        
+        # Stop backend
+        if [ -f backend.pid ]; then
+          BACKEND_PID=$(cat backend.pid)
+          if kill -0 $BACKEND_PID 2>/dev/null; then
+            echo "Stopping backend (PID: $BACKEND_PID)..."
+            kill $BACKEND_PID || true
+          fi
+          rm -f backend.pid
+        fi
+        
+        # Stop frontend
+        if [ -f frontend.pid ]; then
+          FRONTEND_PID=$(cat frontend.pid)
+          if kill -0 $FRONTEND_PID 2>/dev/null; then
+            echo "Stopping frontend (PID: $FRONTEND_PID)..."
+            kill $FRONTEND_PID || true
+          fi
+          rm -f frontend.pid
+        fi
+        
+        # Kill any remaining processes on test ports
+        lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+        lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+        
+        echo "✅ Cleanup completed"
+
+  redis-service-tests:
+    name: Redis Service Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Test Redis services
+      working-directory: ./backend
+      run: |
+        echo "🔍 Testing Redis service functionality..."
+        
+        # Create a simple Redis test script
+        cat > test-redis.js << 'EOF'
+        const redisService = require('./src/services/redis');
+        const redisSessionService = require('./src/services/redisSession');
+        const redisCacheService = require('./src/services/redisCache');
+
+        (async () => {
+          try {
+            console.log('🔄 Testing Redis connection...');
+            const connected = await redisService.connect();
+            
+            if (!connected) {
+              throw new Error('Failed to connect to Redis');
+            }
+            console.log('✅ Redis connection successful');
+
+            console.log('🔄 Testing Redis cache service...');
+            await redisCacheService.set('test:key', { message: 'Hello Redis!' }, 60);
+            const cached = await redisCacheService.get('test:key');
+            
+            if (!cached || cached.message !== 'Hello Redis!') {
+              throw new Error('Cache test failed');
+            }
+            console.log('✅ Redis cache service working');
+
+            console.log('🔄 Testing Redis session service...');
+            const sessionId = 'test-session-123';
+            const sessionData = {
+              status: 'running',
+              startTime: new Date().toISOString(),
+              tableNames: ['test_table']
+            };
+            
+            await redisSessionService.storeSession(sessionId, sessionData);
+            const retrievedSession = await redisSessionService.getSession(sessionId);
+            
+            if (!retrievedSession || retrievedSession.status !== 'running') {
+              throw new Error('Session test failed');
+            }
+            console.log('✅ Redis session service working');
+
+            // Cleanup
+            await redisService.disconnect();
+            console.log('🎉 All Redis tests passed!');
+            process.exit(0);
+          } catch (error) {
+            console.error('❌ Redis test failed:', error.message);
+            process.exit(1);
+          }
+        })();
+        EOF
+        
+        # Run the Redis test
+        REDIS_URL=redis://localhost:6379 REDIS_ENABLED=true node test-redis.js
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [backend-unit-tests, frontend-tests, integration-tests, redis-service-tests]
+    if: always()
+    
+    steps:
+    - name: Generate test summary
+      run: |
+        echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check job results
+        echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Backend Unit Tests | ${{ needs.backend-unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Frontend Tests | ${{ needs.frontend-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Redis Service Tests | ${{ needs.redis-service-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Overall status
+        if [[ "${{ needs.backend-unit-tests.result }}" == "success" && 
+              "${{ needs.frontend-tests.result }}" == "success" && 
+              "${{ needs.integration-tests.result }}" == "success" && 
+              "${{ needs.redis-service-tests.result }}" == "success" ]]; then
+          echo "### 🎉 All tests passed!" >> $GITHUB_STEP_SUMMARY
+          echo "The application is ready for deployment." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ⚠️ Some tests failed" >> $GITHUB_STEP_SUMMARY
+          echo "Please review the failed test suites above." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test run completed at:** $(date)" >> $GITHUB_STEP_SUMMARY

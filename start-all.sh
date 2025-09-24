@@ -60,6 +60,63 @@ cleanup_all_ports() {
     echo "Port cleanup completed"
 }
 
+# Function to check Redis status and attempt to start if needed
+check_redis_status() {
+    echo "=== Redis Status Check ==="
+    
+    # Check if Redis is running
+    if redis-cli ping > /dev/null 2>&1; then
+        echo "✅ Redis is running and accessible"
+        REDIS_STATUS="running"
+        return 0
+    else
+        echo "⚠️ Redis is not running"
+        
+        # Check if Redis is installed
+        if command -v redis-server > /dev/null 2>&1; then
+            echo "📦 Redis is installed, attempting to start..."
+            
+            # Try to start Redis in daemon mode
+            if redis-server --daemonize yes --port 6379 --bind 127.0.0.1 > /dev/null 2>&1; then
+                sleep 2
+                
+                # Check if it started successfully
+                if redis-cli ping > /dev/null 2>&1; then
+                    echo "✅ Redis started successfully"
+                    # Mark that we started Redis so stop-all.sh can clean it up
+                    touch "$LOGS_DIR/redis_started_by_app"
+                    REDIS_STATUS="started"
+                    return 0
+                else
+                    echo "❌ Failed to start Redis server"
+                    REDIS_STATUS="failed"
+                fi
+            else
+                echo "❌ Failed to launch Redis server"
+                REDIS_STATUS="failed"
+            fi
+        else
+            echo "❌ Redis is not installed on this system"
+            echo ""
+            echo "To install Redis on Ubuntu/Debian:"
+            echo "  sudo apt-get update && sudo apt-get install redis-server"
+            echo ""
+            echo "To install Redis on macOS:"
+            echo "  brew install redis"
+            echo ""
+            echo "To install Redis on CentOS/RHEL:"
+            echo "  sudo yum install redis"
+            echo ""
+            REDIS_STATUS="not_installed"
+        fi
+        
+        echo "⚠️  Application will run with in-memory storage only"
+        echo "    Session data will not persist between restarts"
+        echo ""
+        return 1
+    fi
+}
+
 # Function to start backend with logging
 start_backend() {
     echo "Starting backend server with logging to $BACKEND_LOG..."
@@ -160,6 +217,9 @@ fi
 
     # Clean up ports first
     cleanup_all_ports
+    
+    # Check Redis availability
+    check_redis_status
 
     # Install dependencies if needed
     if [ "$1" = "install" ] || [ ! -d "backend/node_modules" ] || [ ! -d "frontend/node_modules" ]; then

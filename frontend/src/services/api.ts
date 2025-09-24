@@ -126,6 +126,11 @@ export const importAPI = {
     const response = await api.get('/import/schema-preview');
     return response.data;
   },
+
+  retryTable: async (sessionId: string, tableName: string) => {
+    const response = await api.post('/import/retry-table', { sessionId, tableName });
+    return response.data;
+  },
 };
 
 export default api;

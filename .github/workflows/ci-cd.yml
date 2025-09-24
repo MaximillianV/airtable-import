@@ -24,6 +24,16 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
     steps:
     - name: Checkout code
@@ -78,13 +88,15 @@ jobs:
         ADMIN_EMAIL=admin@example.com
         ADMIN_PASSWORD=admin123
         DATABASE_URL=sqlite::memory:
+        REDIS_URL=redis://localhost:6379
+        REDIS_ENABLED=true
         EOF
         
         # Ensure proper .env file permissions
         chmod 644 .env
         
         echo "Backend environment configured for testing"
-        echo "Using in-memory SQLite database for tests"
+        echo "Using in-memory SQLite database and Redis for tests"
 
     - name: Setup frontend environment
       working-directory: ./frontend

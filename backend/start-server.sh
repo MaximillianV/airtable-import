@@ -20,6 +20,43 @@ cleanup_ports() {
     done
 }
 
+# Function to check Redis availability
+check_redis() {
+    echo "Checking Redis availability..."
+    
+    # Check if Redis is running
+    if redis-cli ping > /dev/null 2>&1; then
+        echo "✅ Redis is running and accessible"
+        export REDIS_ENABLED=true
+        return 0
+    else
+        echo "⚠️ Redis is not running or not accessible"
+        echo "Attempting to start Redis server..."
+        
+        # Try to start Redis in the background
+        if command -v redis-server > /dev/null 2>&1; then
+            redis-server --daemonize yes --port 6379 --bind 127.0.0.1 > /dev/null 2>&1
+            sleep 2
+            
+            # Check again
+            if redis-cli ping > /dev/null 2>&1; then
+                echo "✅ Redis started successfully"
+                export REDIS_ENABLED=true
+                return 0
+            else
+                echo "❌ Failed to start Redis"
+                export REDIS_ENABLED=false
+                return 1
+            fi
+        else
+            echo "❌ Redis server not found on system"
+            echo "Install Redis with: sudo apt-get install redis-server"
+            export REDIS_ENABLED=false
+            return 1
+        fi
+    fi
+}
+
 # Function to check and set environment variables
 check_environment() {
     # Check if .env file exists, create from example if not
@@ -39,6 +76,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=admin123
 DATABASE_URL=sqlite::memory:
+REDIS_URL=redis://localhost:6379
+REDIS_ENABLED=true
 EOF
             else
                 cat > .env << EOF
@@ -48,6 +87,8 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=admin123
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/airtable_import
+REDIS_URL=redis://localhost:6379
+REDIS_ENABLED=true
 EOF
             fi
         fi
@@ -84,8 +125,19 @@ echo "=== Airtable Import Backend Startup ==="
 # Clean up ports
 cleanup_ports
 
+# Check Redis
+check_redis
+
 # Check environment
 check_environment
+
+# Display Redis status
+if [ "$REDIS_ENABLED" = "true" ]; then
+    echo "✅ Redis integration: ENABLED"
+    echo "  Redis URL: ${REDIS_URL:-redis://localhost:6379}"
+else
+    echo "⚠️ Redis integration: DISABLED (fallback to in-memory storage)"
+fi
 
 # Start the server
 echo "Starting server on port $PORT..."
