@@ -73,13 +73,18 @@ export const settingsAPI = {
     return response.data;
   },
 
-  save: async (settings: Settings) => {
+  save: async (settings: Partial<Settings>) => {
     const response = await api.post('/settings', settings);
     return response.data;
   },
 
   testConnections: async (settings: Settings): Promise<ConnectionTestResult> => {
     const response = await api.post('/settings/test', settings);
+    return response.data;
+  },
+
+  testSavedConnections: async (): Promise<ConnectionTestResult> => {
+    const response = await api.post('/settings/test-saved');
     return response.data;
   },
 };

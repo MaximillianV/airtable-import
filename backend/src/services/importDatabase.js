@@ -125,30 +125,46 @@ class ImportDatabaseService {
       // Local database - disable SSL
       connectionConfig.ssl = false;
     } else {
-      // Remote database - check for CA certificate file
+      // Remote database - try multiple SSL strategies for DigitalOcean
       const caCertPath = path.join(__dirname, '../../data/ca-certificate.crt');
       
-      if (fs.existsSync(caCertPath)) {
-        // Use the CA certificate for secure SSL connection
+      // For DigitalOcean databases, try the most permissive SSL settings first
+      if (modifiedConnectionString.includes('digitalocean.com')) {
+        // Strategy 1: Maximum permissive SSL for DigitalOcean
         connectionConfig.ssl = {
-          rejectUnauthorized: false,  // Don't strictly validate to avoid chain issues
+          rejectUnauthorized: false,
+          checkServerIdentity: () => undefined,
+          requestCert: false,
+          agent: false,
+          secureProtocol: 'TLSv1_2_method'
+        };
+        
+        // Modify connection string to use require SSL mode but don't verify
+        const sslUrl = new URL(modifiedConnectionString);
+        sslUrl.searchParams.set('sslmode', 'require');
+        sslUrl.searchParams.set('sslcert', '');
+        sslUrl.searchParams.set('sslkey', '');
+        sslUrl.searchParams.set('sslrootcert', '');
+        connectionConfig.connectionString = sslUrl.toString();
+        
+        console.log(`⚡ Using maximum permissive SSL for DigitalOcean database`);
+      } else if (fs.existsSync(caCertPath)) {
+        // Use the CA certificate for other remote databases
+        connectionConfig.ssl = {
+          rejectUnauthorized: false,
           ca: fs.readFileSync(caCertPath, 'utf8'),
-          checkServerIdentity: () => undefined,  // Skip hostname verification for DigitalOcean
+          checkServerIdentity: () => undefined,
+          requestCert: false,
+          agent: false
         };
         console.log(`🔒 Using CA certificate for SSL connection: ${caCertPath}`);
-        
-        // For DigitalOcean, also ensure SSL mode is properly set
-        if (modifiedConnectionString.includes('digitalocean.com')) {
-          const sslUrl = new URL(modifiedConnectionString);
-          sslUrl.searchParams.set('sslmode', 'require');
-          connectionConfig.connectionString = sslUrl.toString();
-          console.log(`🔧 Modified connection string for DigitalOcean SSL mode`);
-        }
       } else {
         // Fallback to permissive SSL if no CA certificate is available
         connectionConfig.ssl = {
-          rejectUnauthorized: false,  // Don't validate certificate authority
-          checkServerIdentity: () => undefined,  // Skip hostname verification
+          rejectUnauthorized: false,
+          checkServerIdentity: () => undefined,
+          requestCert: false,
+          agent: false
         };
         console.log(`⚠️  No CA certificate found, using permissive SSL mode`);
       }

@@ -1,0 +1,457 @@
+/**
+ * Import Target Database Service
+ * 
+ * Handles connections to the target database where Airtable data will be imported.
+ * Supports both SQLite (default) and PostgreSQL/other databases (via URL).
+ * This is separate from the main app database (Prisma) which stores metadata.
+ */
+
+const sqlite3 = require('sqlite3').verbose();
+const { Client } = require('pg');
+const path = require('path');
+const fs = require('fs');
+
+class ImportDatabaseService {
+  constructor() {
+    this.connection = null;
+    this.dbType = null;
+    this.connectionString = null;
+  }
+
+  /**
+   * Connect to target database for importing Airtable data.
+   * If no URL is provided, creates a local SQLite database.
+   * For PostgreSQL URLs, automatically creates database name based on Airtable base ID.
+   * 
+   * @param {string|null} databaseUrl - Database connection URL or null for SQLite
+   * @param {string} airtableBaseId - Airtable base ID for database naming
+   * @returns {Promise<{success: boolean, dbType: string, location: string}>}
+   */
+  async connect(databaseUrl, airtableBaseId) {
+    try {
+      if (!databaseUrl || databaseUrl.trim() === '') {
+        // Default: Create local SQLite database with base ID
+        return await this.connectSQLite(airtableBaseId);
+      } else {
+        // Custom: Connect to database with base-specific naming
+        return await this.connectCustomDatabase(databaseUrl, airtableBaseId);
+      }
+    } catch (error) {
+      console.error('Import database connection error:', error.message);
+      throw new Error(`Import database connection failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Connect to local SQLite database (default option)
+   * Creates a new database file in the data directory with base ID
+   * 
+   * @param {string} airtableBaseId - Airtable base ID for database naming
+   * @returns {Promise<{success: boolean, dbType: string, location: string}>}
+   */
+  async connectSQLite(airtableBaseId) {
+    // Create data directory if it doesn't exist
+    const dataDir = path.join(__dirname, '../../data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    // Generate database filename with base ID and timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const baseIdSafe = airtableBaseId || 'unknown';
+    const dbPath = path.join(dataDir, `airtable_import_data_${baseIdSafe}_${timestamp}.sqlite`);
+
+    return new Promise((resolve, reject) => {
+      this.connection = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          reject(new Error(`SQLite connection failed: ${err.message}`));
+        } else {
+          this.dbType = 'sqlite';
+          this.connectionString = dbPath;
+          console.log(`✅ Connected to SQLite database: ${dbPath}`);
+          resolve({
+            success: true,
+            dbType: 'sqlite',
+            location: dbPath
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Connect to custom database via URL string
+   * Currently supports PostgreSQL, can be extended for other databases
+   * Automatically creates database name based on Airtable base ID
+   * 
+   * @param {string} databaseUrl - Database connection URL
+   * @param {string} airtableBaseId - Airtable base ID for database naming
+   * @returns {Promise<{success: boolean, dbType: string, location: string}>}
+   */
+  async connectCustomDatabase(databaseUrl, airtableBaseId) {
+    if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
+      return await this.connectPostgreSQL(databaseUrl, airtableBaseId);
+    } else {
+      throw new Error(`Unsupported database URL format: ${databaseUrl}`);
+    }
+  }
+
+  /**
+   * Connect to PostgreSQL database with base-specific database name
+   * 
+   * @param {string} connectionString - PostgreSQL connection string
+   * @param {string} airtableBaseId - Airtable base ID for database naming
+   * @returns {Promise<{success: boolean, dbType: string, location: string}>}
+   */
+  async connectPostgreSQL(connectionString, airtableBaseId) {
+    // Parse the connection string and modify database name
+    const url = new URL(connectionString);
+    const originalDatabase = url.pathname.substring(1); // Remove leading '/'
+    const baseIdSafe = airtableBaseId || 'unknown';
+    const newDatabaseName = `airtable_import_data_${baseIdSafe}`;
+    
+    // Update the URL with the new database name
+    url.pathname = `/${newDatabaseName}`;
+    const modifiedConnectionString = url.toString();
+    
+    console.log(`🎯 Connecting to base-specific database: ${newDatabaseName}`);
+    
+    // Configure connection with SSL settings
+    let connectionConfig = { connectionString: modifiedConnectionString };
+    
+    // Handle different SSL scenarios
+    if (connectionString.includes('localhost') || connectionString.includes('127.0.0.1')) {
+      // Local database - disable SSL
+      connectionConfig.ssl = false;
+    } else {
+      // Remote database - check for CA certificate file
+      const caCertPath = path.join(__dirname, '../../data/ca-certificate.crt');
+      
+      if (fs.existsSync(caCertPath)) {
+        // Use the CA certificate for secure SSL connection
+        // Note: Using rejectUnauthorized: false to handle potential certificate chain issues
+        // while still providing the CA certificate for validation
+        connectionConfig.ssl = {
+          rejectUnauthorized: false,  // Don't strictly validate to avoid chain issues
+          ca: fs.readFileSync(caCertPath, 'utf8'),
+          checkServerIdentity: () => undefined,  // Skip hostname verification for DigitalOcean
+        };
+        console.log(`🔒 Using CA certificate for SSL connection: ${caCertPath}`);
+    
+    // Handle different SSL scenarios
+    if (modifiedConnectionString.includes('localhost') || modifiedConnectionString.includes('127.0.0.1')) {
+      // Local database - disable SSL
+      connectionConfig.ssl = false;
+    } else {
+      // Remote database - check for CA certificate file
+      const caCertPath = path.join(__dirname, '../../data/ca-certificate.crt');
+      
+      if (fs.existsSync(caCertPath)) {
+        // Use the CA certificate for secure SSL connection
+        // Note: Using rejectUnauthorized: false to handle potential certificate chain issues
+        // while still providing the CA certificate for validation
+        connectionConfig.ssl = {
+          rejectUnauthorized: false,  // Don't strictly validate to avoid chain issues
+          ca: fs.readFileSync(caCertPath, 'utf8'),
+          checkServerIdentity: () => undefined,  // Skip hostname verification for DigitalOcean
+        };
+        console.log(`🔒 Using CA certificate for SSL connection: ${caCertPath}`);
+        
+        // For DigitalOcean, also ensure SSL mode is properly set
+        if (modifiedConnectionString.includes('digitalocean.com')) {
+          // Parse and modify the connection string for better SSL compatibility
+          const sslUrl = new URL(modifiedConnectionString);
+          sslUrl.searchParams.set('sslmode', 'require');
+          connectionConfig.connectionString = sslUrl.toString();
+          console.log(`🔧 Modified connection string for DigitalOcean SSL mode`);
+        }
+      } else {
+        // Fallback to permissive SSL if no CA certificate is available
+        connectionConfig.ssl = {
+          rejectUnauthorized: false,  // Don't validate certificate authority
+          checkServerIdentity: () => undefined,  // Skip hostname verification
+        };
+        console.log(`⚠️  No CA certificate found, using permissive SSL mode`);
+      }
+    }
+    
+    console.log(`🔧 Attempting PostgreSQL connection to ${newDatabaseName} with SSL config:`, {
+      ssl: connectionConfig.ssl !== false ? 'enabled' : 'disabled',
+      ca: connectionConfig.ssl && connectionConfig.ssl.ca ? 'certificate loaded' : 'no certificate',
+      rejectUnauthorized: connectionConfig.ssl && connectionConfig.ssl.rejectUnauthorized,
+      host: modifiedConnectionString.includes('digitalocean.com') ? 'DigitalOcean' : 'Local'
+    });
+    
+    this.connection = new Client(connectionConfig);
+    await this.connection.connect();
+    
+    this.dbType = 'postgresql';
+    this.connectionString = modifiedConnectionString;
+    
+    console.log(`✅ Connected to PostgreSQL database: ${newDatabaseName}`);
+    
+    return {
+      success: true,
+      dbType: 'postgresql',
+      location: `${newDatabaseName} (${url.host})`
+    };
+  }
+
+  /**
+   * Disconnect from the target database
+   */
+  async disconnect() {
+    if (this.connection) {
+      if (this.dbType === 'sqlite') {
+        this.connection.close();
+      } else if (this.dbType === 'postgresql') {
+        await this.connection.end();
+      }
+      this.connection = null;
+      this.dbType = null;
+      this.connectionString = null;
+      console.log('✅ Disconnected from import target database');
+    }
+  }
+
+  /**
+   * Test the database connection
+   * 
+   * @returns {Promise<{success: boolean, message: string}>}
+   */
+  async testConnection() {
+    if (!this.connection) {
+      throw new Error('Not connected to any database');
+    }
+
+    try {
+      if (this.dbType === 'sqlite') {
+        return new Promise((resolve, reject) => {
+          this.connection.get('SELECT 1 as test', (err, row) => {
+            if (err) {
+              reject(new Error(`SQLite test failed: ${err.message}`));
+            } else {
+              resolve({
+                success: true,
+                message: `SQLite connection working (${this.connectionString})`
+              });
+            }
+          });
+        });
+      } else if (this.dbType === 'postgresql') {
+        const result = await this.connection.query('SELECT 1 as test');
+        return {
+          success: true,
+          message: `PostgreSQL connection working (${this.connectionString.replace(/\/\/.*@/, '//***@')})`
+        };
+      }
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a table in the target database from Airtable schema
+   * 
+   * @param {string} tableName - Name of the table to create
+   * @param {Object[]} records - Sample Airtable records to infer schema from
+   * @returns {Promise<string>} Sanitized table name that was created
+   */
+  async createTableFromAirtableSchema(tableName, records) {
+    if (!this.connection) {
+      throw new Error('Not connected to target database');
+    }
+
+    if (!records || records.length === 0) {
+      throw new Error('No records provided to infer schema');
+    }
+
+    // Sanitize table name for SQL safety
+    const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+    
+    // Analyze records to determine column types
+    const sampleRecords = records.slice(0, Math.min(10, records.length));
+    const columnDefinitions = this.inferColumnTypes(sampleRecords);
+    
+    // Build CREATE TABLE statement
+    const createTableSQL = this.buildCreateTableSQL(sanitizedTableName, columnDefinitions);
+    
+    // Execute the CREATE TABLE statement
+    await this.executeSQL(createTableSQL);
+    
+    console.log(`✅ Created table "${sanitizedTableName}" with ${Object.keys(columnDefinitions).length} columns`);
+    return sanitizedTableName;
+  }
+
+  /**
+   * Infer column types from Airtable records
+   * 
+   * @param {Object[]} records - Sample records to analyze
+   * @returns {Object} Column definitions with types
+   */
+  inferColumnTypes(records) {
+    const columns = {};
+    
+    // Always include Airtable ID as primary identifier
+    columns['airtable_id'] = { type: 'TEXT', nullable: false };
+    columns['created_time'] = { type: 'TEXT', nullable: true };
+    
+    // Analyze each field in the records
+    for (const record of records) {
+      if (record.fields) {
+        for (const [fieldName, value] of Object.entries(record.fields)) {
+          const columnName = fieldName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+          
+          if (!columns[columnName]) {
+            columns[columnName] = {
+              type: this.inferSQLType(value),
+              nullable: true
+            };
+          }
+        }
+      }
+    }
+    
+    return columns;
+  }
+
+  /**
+   * Infer SQL type from JavaScript value
+   * 
+   * @param {any} value - Value to analyze
+   * @returns {string} SQL type
+   */
+  inferSQLType(value) {
+    if (value === null || value === undefined) return 'TEXT';
+    if (typeof value === 'number') return Number.isInteger(value) ? 'INTEGER' : 'REAL';
+    if (typeof value === 'boolean') return 'INTEGER'; // Store as 0/1
+    if (Array.isArray(value)) return 'TEXT'; // Store as JSON string
+    if (typeof value === 'object') return 'TEXT'; // Store as JSON string
+    return 'TEXT'; // Default to text
+  }
+
+  /**
+   * Build CREATE TABLE SQL statement
+   * 
+   * @param {string} tableName - Sanitized table name
+   * @param {Object} columns - Column definitions
+   * @returns {string} CREATE TABLE SQL
+   */
+  buildCreateTableSQL(tableName, columns) {
+    const columnDefs = Object.entries(columns).map(([name, def]) => {
+      const nullable = def.nullable ? '' : ' NOT NULL';
+      return `"${name}" ${def.type}${nullable}`;
+    });
+    
+    if (this.dbType === 'sqlite') {
+      return `CREATE TABLE IF NOT EXISTS "${tableName}" (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${columnDefs.join(',\n        ')}
+      )`;
+    } else if (this.dbType === 'postgresql') {
+      return `CREATE TABLE IF NOT EXISTS "${tableName}" (
+        id SERIAL PRIMARY KEY,
+        ${columnDefs.join(',\n        ')}
+      )`;
+    }
+  }
+
+  /**
+   * Execute SQL statement on the target database
+   * 
+   * @param {string} sql - SQL statement to execute
+   * @param {Array} params - Parameters for the SQL statement
+   * @returns {Promise<any>} Query result
+   */
+  async executeSQL(sql, params = []) {
+    if (!this.connection) {
+      throw new Error('Not connected to target database');
+    }
+
+    if (this.dbType === 'sqlite') {
+      return new Promise((resolve, reject) => {
+        this.connection.run(sql, params, function(err) {
+          if (err) {
+            reject(new Error(`SQLite query failed: ${err.message}`));
+          } else {
+            resolve({ changes: this.changes, lastID: this.lastID });
+          }
+        });
+      });
+    } else if (this.dbType === 'postgresql') {
+      const result = await this.connection.query(sql, params);
+      return result;
+    }
+  }
+
+  /**
+   * Insert records into the target table
+   * 
+   * @param {string} tableName - Name of the table to insert into
+   * @param {Object[]} records - Airtable records to insert
+   * @returns {Promise<{insertedCount: number}>}
+   */
+  async insertRecords(tableName, records) {
+    if (!records || records.length === 0) {
+      return { insertedCount: 0 };
+    }
+
+    let insertedCount = 0;
+    
+    for (const record of records) {
+      try {
+        // Prepare record data
+        const recordData = {
+          airtable_id: record.id,
+          created_time: record.createdTime || null
+        };
+        
+        // Add field values
+        if (record.fields) {
+          for (const [fieldName, value] of Object.entries(record.fields)) {
+            const columnName = fieldName.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+            
+            // Convert complex values to JSON strings
+            if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+              recordData[columnName] = JSON.stringify(value);
+            } else if (typeof value === 'boolean') {
+              recordData[columnName] = value ? 1 : 0;
+            } else {
+              recordData[columnName] = value;
+            }
+          }
+        }
+        
+        // Build INSERT statement
+        const columns = Object.keys(recordData);
+        const placeholders = columns.map((_, i) => this.dbType === 'postgresql' ? `$${i + 1}` : '?');
+        const values = Object.values(recordData);
+        
+        const insertSQL = `INSERT OR REPLACE INTO "${tableName}" (${columns.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders.join(', ')})`;
+        
+        await this.executeSQL(insertSQL, values);
+        insertedCount++;
+      } catch (error) {
+        console.warn(`Failed to insert record ${record.id}:`, error.message);
+      }
+    }
+    
+    console.log(`✅ Inserted ${insertedCount}/${records.length} records into "${tableName}"`);
+    return { insertedCount };
+  }
+
+  /**
+   * Get information about the current database connection
+   * 
+   * @returns {Object} Connection information
+   */
+  getConnectionInfo() {
+    return {
+      dbType: this.dbType,
+      connected: !!this.connection,
+      location: this.connectionString
+    };
+  }
+}
+
+module.exports = ImportDatabaseService;

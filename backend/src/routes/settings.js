@@ -32,10 +32,22 @@ router.get('/', authenticateToken, async (req, res) => {
     // Get settings from database using Prisma
     const settings = await db.getSettings(req.user.userId);
     
+    // Determine database URL status
+    let databaseUrlStatus = 'default';
+    if (settings?.databaseUrl) {
+      // Check if it's a custom database URL (not the default local one)
+      const isLocalDefault = settings.databaseUrl.includes('localhost') || 
+                            settings.databaseUrl.includes('127.0.0.1') ||
+                            settings.databaseUrl.includes('.sqlite') ||
+                            settings.databaseUrl.startsWith('postgresql://postgres:password@localhost');
+      databaseUrlStatus = isLocalDefault ? 'default' : 'configured';
+    }
+    
     // Return sanitized settings (hide sensitive data)
     const sanitizedSettings = {
       airtableBaseId: settings?.airtableBaseId || '',
-      databaseUrl: settings?.databaseUrl ? '***CONFIGURED***' : '',
+      databaseUrl: settings?.databaseUrl ? (databaseUrlStatus === 'default' ? '***DEFAULT***' : '***CONFIGURED***') : '',
+      databaseUrlStatus: databaseUrlStatus,
       airtableApiKey: settings?.airtableApiKey ? '***CONFIGURED***' : '',
       lastUpdated: settings?.updatedAt || null
     };
@@ -116,6 +128,39 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Reset database URL to default endpoint
+ */
+router.post('/reset-database', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const existingSettings = await db.getSettings(userId);
+    
+    if (!existingSettings) {
+      return res.status(404).json({ error: 'No settings found to reset' });
+    }
+
+    // Reset to default local PostgreSQL URL
+    const defaultDatabaseUrl = 'postgresql://postgres:password@localhost:5432/airtable_import';
+    
+    const updateData = {
+      airtableApiKey: existingSettings.airtableApiKey,
+      airtableBaseId: existingSettings.airtableBaseId,
+      databaseUrl: defaultDatabaseUrl
+    };
+
+    await db.saveSettings(userId, updateData);
+    
+    console.log(`✅ Database URL reset to default for user ${req.user.email}`);
+    res.json({ 
+      message: 'Database URL reset to default successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error resetting database URL:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * Test connections endpoint
  * Validates Airtable and database connections without saving settings
  */
@@ -146,6 +191,50 @@ router.post('/test', authenticateToken, async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error('❌ Error testing connections:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Test connections using saved settings endpoint
+ * Retrieves user's actual saved settings and tests connections
+ */
+router.post('/test-saved', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Get the actual saved settings (not sanitized)
+    const settings = await db.getSettings(userId);
+    
+    if (!settings) {
+      return res.status(404).json({ 
+        error: 'No settings found. Please configure your settings first.' 
+      });
+    }
+
+    // Validate that we have the required settings
+    if (!settings.airtableApiKey || !settings.airtableBaseId || !settings.databaseUrl) {
+      return res.status(400).json({ 
+        error: 'Incomplete settings. Please ensure Airtable API key, base ID, and database URL are configured.' 
+      });
+    }
+
+    // Test connections using import service with actual saved values
+    const importService = new ImportService();
+    const results = await importService.testConnections(
+      settings.airtableApiKey,
+      settings.airtableBaseId,
+      settings.databaseUrl
+    );
+
+    console.log(`✅ Connection test completed using saved settings for user ${req.user.email}:`, {
+      airtable: results.airtable.success,
+      database: results.database.success
+    });
+
+    res.json(results);
+  } catch (error) {
+    console.error('❌ Error testing saved connections:', error.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
