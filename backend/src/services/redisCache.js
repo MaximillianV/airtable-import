@@ -29,6 +29,65 @@ class RedisCacheService {
   }
 
   /**
+   * Generic set method for caching arbitrary data
+   */
+  async set(key, value, ttl = 3600) {
+    try {
+      if (!redisService.isConnected) {
+        console.warn('⚠️ Redis not connected, skipping cache set');
+        return false;
+      }
+
+      const data = {
+        value,
+        timestamp: Date.now(),
+        cached_at: new Date().toISOString()
+      };
+
+      await redisService.client.setex(`${this.prefix}:generic:${key}`, ttl, JSON.stringify(data));
+      this.stats.sets++;
+      
+      console.log(`✅ Cached generic data with key: ${key}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error setting cache:', error.message);
+      this.stats.errors++;
+      return false;
+    }
+  }
+
+  /**
+   * Generic get method for retrieving cached data
+   */
+  async get(key) {
+    try {
+      if (!redisService.isConnected) {
+        console.warn('⚠️ Redis not connected, cache miss');
+        this.stats.misses++;
+        return null;
+      }
+
+      const cached = await redisService.client.get(`${this.prefix}:generic:${key}`);
+      
+      if (!cached) {
+        this.stats.misses++;
+        console.log(`💨 Cache miss for key: ${key}`);
+        return null;
+      }
+
+      const data = JSON.parse(cached);
+      this.stats.hits++;
+      
+      console.log(`🎯 Cache hit for key: ${key} (cached ${Math.round((Date.now() - data.timestamp) / 1000)}s ago)`);
+      return data.value;
+    } catch (error) {
+      console.error('❌ Error getting cache:', error.message);
+      this.stats.errors++;
+      return null;
+    }
+  }
+
+  /**
    * Cache table discovery results (tables with record counts)
    */
   async cacheTableDiscovery(baseId, tables) {
