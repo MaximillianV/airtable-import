@@ -31,7 +31,7 @@ initializeImportService();
  */
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    const { tableNames, tables } = req.body;
+    const { tableNames, tables, overwrite = false } = req.body;
     const userId = req.user.userId;
 
     // Support both legacy format (tableNames array) and new format (tables array with metadata)
@@ -110,18 +110,42 @@ router.post('/start', authenticateToken, async (req, res) => {
         await importService.connect(airtableApiKey, airtableBaseId, databaseUrl);
         
         // Import all tables and get results
-        const results = await importService.importMultipleTables(tablesToImport, sessionId);
+        const results = await importService.importMultipleTables(tablesToImport, sessionId, { overwrite });
         
         // Calculate success metrics from results array
         const successfulImports = results.filter(r => r.success);
         const failedImports = results.filter(r => !r.success);
-        const totalRecordsProcessed = successfulImports.reduce((sum, r) => sum + (r.recordsImported || 0), 0);
         
-        // Update session with completion status
+        // Calculate totals across all tables
+        const totalRecordsProcessed = successfulImports.reduce((sum, r) => sum + (r.processedRecords || 0), 0);
+        const totalRecordsSkipped = successfulImports.reduce((sum, r) => sum + (r.skippedRecords || 0), 0);
+        const totalRecordsAttempted = results.reduce((sum, r) => sum + (r.totalRecords || 0), 0);
+        
+        // Create per-table results structure
+        const tableResults = {};
+        results.forEach(result => {
+          tableResults[result.tableName] = {
+            tableName: result.tableName,
+            success: result.success,
+            mode: result.mode,
+            processedRecords: result.processedRecords || 0,
+            updatedRecords: result.updatedRecords || 0,
+            skippedRecords: result.skippedRecords || 0,
+            totalRecords: result.totalRecords || 0,
+            error: result.error || null
+          };
+        });
+        
+        // Determine final status: successful if no failures, even if nothing was processed
+        const finalStatus = failedImports.length === 0 ? 'COMPLETED' : 
+                           (successfulImports.length > 0 ? 'PARTIAL_FAILED' : 'FAILED');
+        
+        // Update session with completion status and detailed results
         await db.updateImportSession(sessionId, {
-          status: failedImports.length === 0 ? 'COMPLETED' : 'PARTIAL_FAILED',
+          status: finalStatus,
           endTime: new Date(),
           processedRecords: totalRecordsProcessed,
+          results: JSON.stringify(tableResults), // Store per-table results
           errorMessage: failedImports.length > 0 ? JSON.stringify(failedImports.map(f => f.error)) : null
         });
 
@@ -142,7 +166,8 @@ router.post('/start', authenticateToken, async (req, res) => {
     res.json({
       sessionId,
       message: 'Import started successfully',
-      tableNames,
+      tableNames: tablesToImport,
+      overwrite,
       status: 'PENDING'
     });
   } catch (error) {
@@ -193,6 +218,13 @@ router.get('/status/:sessionId', authenticateToken, async (req, res) => {
       responseData.error = session.errorMessage;
     }
 
+    // Add per-table results if available
+    if (session.results) {
+      responseData.results = typeof session.results === 'string' 
+        ? JSON.parse(session.results) 
+        : session.results;
+    }
+
     if (session.importedTables && session.importedTables.length > 0) {
       responseData.importedTables = session.importedTables.map(table => ({
         tableName: table.tableName,
@@ -222,17 +254,33 @@ router.get('/sessions', authenticateToken, async (req, res) => {
     const sessions = await db.getImportSessions(userId, limit);
 
     // Format sessions for response
-    const formattedSessions = sessions.map(session => ({
-      sessionId: session.id,
-      status: session.status,
-      startTime: session.createdAt,
-      startedAt: session.startedAt,
-      endTime: session.endTime,
-      tableNames: session.tableNames,
-      totalTables: session.totalTables,
-      processedRecords: session.processedRecords || 0,
-      importedTablesCount: session.importedTables?.length || 0
-    }));
+    const formattedSessions = sessions.map(session => {
+      const baseSession = {
+        sessionId: session.id,
+        status: session.status,
+        startTime: session.createdAt,
+        startedAt: session.startedAt,
+        endTime: session.endTime,
+        tableNames: session.tableNames,
+        totalTables: session.totalTables,
+        processedRecords: session.processedRecords || 0,
+        importedTablesCount: session.importedTables?.length || 0
+      };
+
+      // Add per-table results if available
+      if (session.results) {
+        baseSession.results = typeof session.results === 'string' 
+          ? JSON.parse(session.results) 
+          : session.results;
+      }
+
+      // Add error message if present
+      if (session.errorMessage) {
+        baseSession.error = session.errorMessage;
+      }
+
+      return baseSession;
+    });
 
     res.json(formattedSessions);
   } catch (error) {
