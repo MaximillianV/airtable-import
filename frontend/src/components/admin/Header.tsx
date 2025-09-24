@@ -44,6 +44,9 @@ const Header: React.FC<HeaderProps> = ({ user, onMenuToggle }) => {
   // State for controlling user dropdown visibility
   const [dropdownOpen, setDropdownOpen] = useState(false);
   
+  // State for tracking window width for responsive design
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  
   // Refs and hooks for navigation and authentication
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -147,6 +150,19 @@ const Header: React.FC<HeaderProps> = ({ user, onMenuToggle }) => {
     };
   }, [dropdownOpen]);
 
+  /**
+   * Effect to handle window resize and update isDesktop state for responsive design.
+   * Listens for window resize events and updates state when crossing 1024px threshold.
+   */
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Generate current breadcrumbs for navigation context
   const breadcrumbs = generateBreadcrumbs();
 
@@ -154,13 +170,15 @@ const Header: React.FC<HeaderProps> = ({ user, onMenuToggle }) => {
     <header style={styles.header}>
       {/* Left Section: Mobile Menu Toggle and Breadcrumbs */}
       <div style={styles.leftSection}>
-        {/* Mobile Menu Toggle Button */}
-        <button
-          style={styles.menuToggle}
-          onClick={onMenuToggle}
-        >
-          <span style={styles.hamburger}>☰</span>
-        </button>
+        {/* Mobile Menu Toggle Button - Only show on mobile */}
+        {!isDesktop && (
+          <button
+            style={styles.menuToggle}
+            onClick={onMenuToggle}
+          >
+            <span style={styles.hamburger}>☰</span>
+          </button>
+        )}
 
         {/* Breadcrumb Navigation */}
         <nav style={styles.breadcrumbs}>
@@ -268,9 +286,7 @@ const styles = {
     cursor: 'pointer',
     borderRadius: '6px',
     transition: 'background-color 0.2s ease',
-    '@media (min-width: 1024px)': {
-      display: 'none'
-    }
+    // Note: Responsive visibility handled via CSS class or window width detection
   },
 
   // Hamburger menu icon

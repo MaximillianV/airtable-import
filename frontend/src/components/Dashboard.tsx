@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { settingsAPI, importAPI } from '../services/api';
 import { ImportSession } from '../types';
 import socketService from '../services/socket';
+import RedisMonitor from './RedisMonitor';
 
 const Dashboard: React.FC = () => {
   const [sessions, setSessions] = useState<ImportSession[]>([]);
@@ -181,6 +182,9 @@ const Dashboard: React.FC = () => {
                 </Link>
               </div>
             </div>
+
+            {/* Redis Monitor Section */}
+            <RedisMonitor />
 
             <div style={styles.sessionsSection}>
               <h2>Recent Import Sessions</h2>

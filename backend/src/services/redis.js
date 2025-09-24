@@ -52,6 +52,13 @@ class RedisService {
   async connect() {
     try {
       console.log('🔄 Connecting to Redis...');
+      console.log(`🔧 Redis Configuration:`, {
+        host: this.config.host,
+        port: this.config.port,
+        database: this.config.db,
+        hasPassword: !!this.config.password,
+        maxRetries: this.maxRetries
+      });
       
       // Main client for general operations
       this.client = new Redis(this.config);
@@ -63,14 +70,23 @@ class RedisService {
       // Setup event handlers
       this.setupEventHandlers();
 
-      // Test connection
+      // Test connection and gather database info
       await this.client.ping();
+      const dbInfo = await this.getDatabaseInfo();
       
       this.isConnected = true;
       this.retryAttempts = 0;
       
       console.log('✅ Redis connected successfully');
       console.log(`📍 Redis Config: ${this.config.host}:${this.config.port} (DB: ${this.config.db})`);
+      console.log(`📊 Database Info:`, {
+        version: dbInfo.redis_version,
+        mode: dbInfo.redis_mode,
+        persistence: dbInfo.rdb_last_save_time ? 'RDB enabled' : 'No persistence',
+        keys: dbInfo.db_keys || 0,
+        memory: dbInfo.used_memory_human,
+        dataDir: dbInfo.data_dir || '/var/lib/redis'
+      });
       
       return true;
     } catch (error) {
@@ -198,6 +214,59 @@ class RedisService {
         healthy: false,
         error: error.message,
         connected: false
+      };
+    }
+  }
+
+  /**
+   * Get comprehensive database information during connection
+   */
+  async getDatabaseInfo() {
+    try {
+      if (!this.client) {
+        throw new Error('Redis client not initialized');
+      }
+
+      // Get server info
+      const serverInfo = await this.client.info('server');
+      const persistenceInfo = await this.client.info('persistence');
+      const keyspaceInfo = await this.client.info('keyspace');
+      const memoryInfo = await this.client.info('memory');
+      
+      // Get database size
+      const dbSize = await this.client.dbsize();
+      
+      // Get configuration details
+      const dataDir = await this.client.config('get', 'dir');
+      const dbFilename = await this.client.config('get', 'dbfilename');
+      const saveConfig = await this.client.config('get', 'save');
+
+      // Parse the info strings
+      const server = this.parseRedisInfo(serverInfo);
+      const persistence = this.parseRedisInfo(persistenceInfo);
+      const keyspace = this.parseRedisInfo(keyspaceInfo);
+      const memory = this.parseRedisInfo(memoryInfo);
+
+      return {
+        redis_version: server.redis_version,
+        redis_mode: server.redis_mode || 'standalone',
+        rdb_last_save_time: persistence.rdb_last_save_time,
+        db_keys: dbSize,
+        used_memory_human: memory.used_memory_human,
+        data_dir: dataDir[1] || '/var/lib/redis',
+        db_filename: dbFilename[1] || 'dump.rdb',
+        save_config: saveConfig[1] || 'default',
+        persistence_enabled: persistence.rdb_last_save_time !== '0',
+        keyspace_info: keyspace
+      };
+    } catch (error) {
+      console.warn('⚠️ Could not retrieve full database info:', error.message);
+      return {
+        redis_version: 'unknown',
+        redis_mode: 'unknown',
+        db_keys: 0,
+        used_memory_human: 'unknown',
+        data_dir: 'unknown'
       };
     }
   }

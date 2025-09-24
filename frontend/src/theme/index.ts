@@ -360,18 +360,18 @@ export const mergeStyles = (
 });
 
 /**
- * Utility function to get responsive spacing based on screen size.
- * Use for consistent spacing that adapts to different viewport sizes.
+ * Responsive spacing utility for mobile-first design
+ * Note: Since React inline styles don't support @media queries,
+ * this function returns mobile spacing. Use CSS classes for responsive design.
  * 
  * @param mobile - Spacing key for mobile
- * @param desktop - Spacing key for desktop  
- * @returns CSS media query with responsive spacing
+ * @param desktop - Spacing key for desktop (unused in inline styles)
+ * @returns Spacing object for mobile
  */
 export const getResponsiveSpacing = (mobile: keyof Theme['spacing'], desktop: keyof Theme['spacing']) => ({
   padding: theme.spacing[mobile],
-  '@media (min-width: 768px)': {
-    padding: theme.spacing[desktop],
-  },
+  // Note: @media queries don't work in React inline styles
+  // Use CSS classes or conditional rendering for responsive design
 });
 
 export default theme;

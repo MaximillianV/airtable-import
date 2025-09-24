@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./src/routes/auth');
 const { router: importRoutes, setupSocketIO } = require('./src/routes/import');
 const { router: settingsRoutes } = require('./src/routes/settings');
+const { router: redisRoutes } = require('./src/routes/redis');
 
 // Initialize Redis services
 const redisService = require('./src/services/redis');
@@ -37,6 +38,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/redis', redisRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
