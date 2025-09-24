@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   email: string;
+  role: 'USER' | 'ADMIN' | 'SUPERADMIN';
 }
 
 export interface AuthResponse {
@@ -13,6 +14,7 @@ export interface Settings {
   airtableBaseId: string;
   databaseUrl: string;
   databaseUrlStatus?: 'default' | 'configured';
+  debugMode?: boolean;
 }
 
 export interface ConnectionTestResult {

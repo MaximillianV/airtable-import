@@ -16,6 +16,7 @@ interface Settings {
   airtableBaseId: string;
   databaseUrl: string;
   databaseUrlStatus?: 'configured' | 'default';
+  debugMode?: boolean;
 }
 
 /**
@@ -32,7 +33,8 @@ const Settings: React.FC = () => {
     airtableApiKey: '',
     airtableBaseId: '',
     databaseUrl: '',
-    databaseUrlStatus: 'default'
+    databaseUrlStatus: 'default',
+    debugMode: false
   });
 
   // State management for inline editing functionality
@@ -74,14 +76,19 @@ const Settings: React.FC = () => {
       setError('');
       
       const data = await settingsAPI.get();
+      console.log('Settings API response:', data);
+      console.log('Debug mode from API:', data.debugMode);
       
       // Set values with defaults for any missing fields
       setSettings({
         airtableApiKey: data.airtableApiKey || '',
         airtableBaseId: data.airtableBaseId || '',
         databaseUrl: data.databaseUrl || '',
-        databaseUrlStatus: data.databaseUrlStatus || 'default'
+        databaseUrlStatus: data.databaseUrlStatus || 'default',
+        debugMode: data.debugMode || false
       });
+      
+      console.log('Settings state set with debugMode:', data.debugMode || false);
     } catch (err) {
       console.error('Failed to load settings:', err);
       setError('Failed to load settings. Please try again.');
@@ -222,6 +229,38 @@ const Settings: React.FC = () => {
       setError('Failed to reset database settings. Please try again.');
     } finally {
       setResetting(false);
+    }
+  };
+
+  /**
+   * Handles debug mode toggle changes.
+   * Immediately saves the debug mode setting to the server.
+   */
+  const handleDebugModeChange = async (enabled: boolean) => {
+    try {
+      setError('');
+      setSuccess('');
+
+      // Update local state immediately for responsive UI
+      setSettings(prev => ({
+        ...prev,
+        debugMode: enabled
+      }));
+
+      // Save to server
+      await settingsAPI.save({ debugMode: enabled });
+      
+      setSuccess(`Debug mode ${enabled ? 'enabled' : 'disabled'} successfully`);
+    } catch (err) {
+      console.error('Failed to update debug mode:', err);
+      
+      // Revert local state on error
+      setSettings(prev => ({
+        ...prev,
+        debugMode: !enabled
+      }));
+      
+      setError('Failed to update debug mode. Please try again.');
     }
   };
 
@@ -418,6 +457,38 @@ const Settings: React.FC = () => {
               >
                 {resetting ? 'Resetting...' : 'Reset to Default'}
               </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Debug Configuration Section */}
+        {(() => {
+          console.log('Rendering debug section with settings.debugMode:', settings.debugMode);
+          return null;
+        })()}
+        <Card style={styles.card}>
+          <div style={styles.cardHeader}>
+            <h3 style={theme.typography.h3}>Debug Configuration</h3>
+            <p style={styles.cardSubtitle}>Enable verbose logging during imports</p>
+          </div>
+          
+          <div style={styles.cardContent}>
+            <div style={styles.debugSection}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={settings.debugMode}
+                  onChange={(e) => handleDebugModeChange(e.target.checked)}
+                  style={styles.checkbox}
+                />
+                <span style={styles.checkboxText}>
+                  Enable Debug Mode
+                </span>
+              </label>
+              <p style={styles.debugDescription}>
+                When enabled, detailed logging information will be displayed during imports, 
+                including progress details, connection status, and processing steps.
+              </p>
             </div>
           </div>
         </Card>
@@ -655,6 +726,37 @@ const styles = {
   testResultMessage: {
     ...theme.typography.small,
     color: theme.colors.neutral[600]
+  } as React.CSSProperties,
+
+  // Debug section
+  debugSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing.md
+  } as React.CSSProperties,
+
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    cursor: 'pointer'
+  } as React.CSSProperties,
+
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer'
+  } as React.CSSProperties,
+
+  checkboxText: {
+    ...theme.typography.body,
+    fontWeight: 500
+  } as React.CSSProperties,
+
+  debugDescription: {
+    ...theme.typography.small,
+    color: theme.colors.neutral[600],
+    lineHeight: 1.5
   } as React.CSSProperties
 };
 

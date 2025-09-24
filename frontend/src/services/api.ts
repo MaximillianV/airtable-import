@@ -121,6 +121,11 @@ export const importAPI = {
     const response = await api.get('/import/discover-tables');
     return response.data;
   },
+
+  getSchemaPreview: async () => {
+    const response = await api.get('/import/schema-preview');
+    return response.data;
+  },
 };
 
 export default api;

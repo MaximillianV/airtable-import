@@ -4,6 +4,7 @@ import { ImportProgress } from '../types';
 class SocketService {
   private socket: Socket | null = null;
   private progressCallbacks = new Set<(progress: ImportProgress) => void>();
+  private debugLogCallbacks = new Set<(logData: { message: string; data?: any }) => void>();
 
   connect() {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
@@ -27,6 +28,14 @@ class SocketService {
       });
     });
 
+    this.socket.on('debug-log', (logData: { message: string; data?: any }) => {
+      console.log('Debug log received:', logData);
+      // Call all registered debug log callbacks
+      this.debugLogCallbacks.forEach(callback => {
+        callback(logData);
+      });
+    });
+
     this.socket.on('error', (error) => {
       console.error('Socket error:', error);
     });
@@ -40,6 +49,7 @@ class SocketService {
       this.socket = null;
     }
     this.progressCallbacks.clear();
+    this.debugLogCallbacks.clear();
   }
 
   joinSession(sessionId: string) {
@@ -68,6 +78,15 @@ class SocketService {
     // Return unsubscribe function
     return () => {
       this.progressCallbacks.delete(callback);
+    };
+  }
+
+  onDebugLog(callback: (logData: { message: string; data?: any }) => void) {
+    this.debugLogCallbacks.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      this.debugLogCallbacks.delete(callback);
     };
   }
 

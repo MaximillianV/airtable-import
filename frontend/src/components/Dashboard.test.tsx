@@ -23,7 +23,7 @@ const Dashboard = require('./Dashboard').default;
 // Mock the AuthContext
 const mockUseAuth = {
   isAuthenticated: true,
-  user: { id: '1', email: 'test@example.com' },
+  user: { id: '1', email: 'test@example.com', role: 'USER' },
   login: jest.fn(),
   logout: jest.fn(),
   loading: false
