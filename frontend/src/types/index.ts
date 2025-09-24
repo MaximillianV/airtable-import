@@ -91,3 +91,78 @@ export interface DiscoverTablesResult {
   message: string;
   error?: string;
 }
+
+// Database Relationship Analysis Types
+export interface DatabaseRelationship {
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  relationshipType: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
+  cardinality: {
+    sourceMin: number;
+    sourceMax: number | 'N';
+    targetMin: number;
+    targetMax: number | 'N';
+    confidence: 'low' | 'medium' | 'high';
+  };
+  isRequired: boolean;
+  constraintName: string;
+  junctionTable?: {
+    name: string;
+    sourceColumn: string;
+    targetColumn: string;
+  } | null;
+  sql: string;
+}
+
+export interface RelationshipAnalysisResult {
+  success: boolean;
+  message: string;
+  data: {
+    relationships: DatabaseRelationship[];
+    summary: {
+      totalRelationships: number;
+      relationshipTypes: Record<string, number>;
+      tablesAnalyzed: number;
+      timestamp: string;
+    };
+  };
+  summary: {
+    totalRelationships: number;
+    relationshipTypes: Record<string, number>;
+    tablesAnalyzed: number;
+    timestamp: string;
+  };
+}
+
+// ERD Visualization Types
+export interface ERDTable {
+  id: string;
+  name: string;
+  displayName: string;
+  position: { x: number; y: number };
+  columns: ERDColumn[];
+  relationships: ERDRelationship[];
+}
+
+export interface ERDColumn {
+  name: string;
+  type: string;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+  isRequired: boolean;
+  isUnique: boolean;
+  originalAirtableType?: string;
+}
+
+export interface ERDRelationship {
+  id: string;
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  relationshipType: string;
+  isRequired: boolean;
+  constraintName: string;
+}

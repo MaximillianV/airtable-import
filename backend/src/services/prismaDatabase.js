@@ -396,6 +396,13 @@ class PrismaDatabaseService {
       const columns = Object.keys(records[0]);
       const columnNames = columns.map(col => `"${this.sanitizeColumnName(col)}"`).join(', ');
       
+      // Debug logging for email templates troubleshooting
+      if (tableName.toLowerCase().includes('email') || tableName.toLowerCase().includes('template')) {
+        console.log(`🔍 Debug: Inserting ${records.length} records into ${tableName}`);
+        console.log(`🔍 Debug: Columns: ${columns.join(', ')}`);
+        console.log(`🔍 Debug: First record sample:`, JSON.stringify(records[0], null, 2));
+      }
+      
       const values = records.map((record, index) => {
         const placeholders = columns.map((_, colIndex) => `$${index * columns.length + colIndex + 1}`);
         return `(${placeholders.join(', ')})`;
@@ -410,13 +417,49 @@ class PrismaDatabaseService {
       `;
 
       // Flatten all values for parameterized query
-      const flatValues = records.flatMap(record => columns.map(col => record[col]));
+      const flatValues = records.flatMap(record => columns.map(col => {
+        const value = record[col];
+        // Handle null/undefined values properly
+        if (value === null || value === undefined) {
+          return null;
+        }
+        // Handle multiline text and special characters in email templates
+        if (typeof value === 'string' && (value.includes('\n') || value.includes('\r'))) {
+          // Keep the string as-is, Prisma will handle escaping
+          return value;
+        }
+        return value;
+      }));
+
+      // Debug logging for parameter mismatch issues
+      const expectedParams = columns.length * records.length;
+      if (flatValues.length !== expectedParams) {
+        console.error(`❌ Parameter mismatch for ${tableName}: expected ${expectedParams}, got ${flatValues.length}`);
+        console.error(`Records: ${records.length}, Columns: ${columns.length}`);
+        throw new Error(`Parameter count mismatch: expected ${expectedParams}, got ${flatValues.length}`);
+      }
+
+      if (tableName.toLowerCase().includes('email') || tableName.toLowerCase().includes('template')) {
+        console.log(`🔍 Debug: SQL query length: ${insertSQL.length}`);
+        console.log(`🔍 Debug: Parameters count: ${flatValues.length}`);
+        console.log(`🔍 Debug: First few parameters:`, flatValues.slice(0, 5));
+      }
 
       await this.prisma.$executeRawUnsafe(insertSQL, ...flatValues);
       console.log(`✅ Inserted ${records.length} records into ${tableName}`);
       return records.length;
     } catch (error) {
       console.error(`❌ Failed to insert into dynamic table ${tableName}:`, error.message);
+      
+      // Enhanced error logging for debugging
+      if (tableName.toLowerCase().includes('email') || tableName.toLowerCase().includes('template')) {
+        console.error(`🔍 Debug: Error details for ${tableName}:`);
+        console.error(`Records count: ${records.length}`);
+        console.error(`Columns: ${Object.keys(records[0] || {}).join(', ')}`);
+        console.error(`Error type: ${error.constructor.name}`);
+        console.error(`Error code: ${error.code}`);
+      }
+      
       throw error;
     }
   }

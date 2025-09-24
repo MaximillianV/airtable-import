@@ -169,6 +169,59 @@ router.post('/clear-cache', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Relationship detection endpoint
+ * Analyzes Airtable base to detect database relationships and foreign key opportunities
+ */
+router.post('/analyze-relationships', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔍 Starting relationship analysis request...');
+    
+    // Get user settings to access Airtable credentials
+    const settings = await getUserSettings(req.user.userId);
+    
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for relationship analysis' 
+      });
+    }
+
+    // Import the RelationshipDetector service
+    const { RelationshipDetector } = require('../services/relationshipDetector');
+    
+    // Create and configure the relationship detector
+    const detector = new RelationshipDetector();
+    await detector.connect(settings.airtableApiKey, settings.airtableBaseId);
+    
+    // Perform the relationship analysis
+    console.log('🔍 Performing comprehensive relationship analysis...');
+    const relationships = await detector.analyzeAllRelationships();
+    
+    // Export the complete analysis data
+    const analysisData = detector.exportRelationships();
+    
+    console.log(`✅ Relationship analysis complete. Found ${relationships.length} relationships`);
+    
+    res.json({
+      success: true,
+      message: `Successfully analyzed relationships in Airtable base`,
+      data: analysisData,
+      summary: {
+        totalRelationships: relationships.length,
+        relationshipTypes: analysisData.summary.relationshipTypes,
+        tablesAnalyzed: analysisData.summary.tablesAnalyzed,
+        timestamp: analysisData.summary.timestamp
+      }
+    });
+    
+  } catch (error) {
+    console.error('Relationship analysis error:', error);
+    res.status(500).json({ 
+      error: 'Failed to analyze relationships: ' + error.message 
+    });
+  }
+});
+
+/**
  * Emit session completion event for a specific completed session
  * Used to fix frontend state when session completion events were missed
  */

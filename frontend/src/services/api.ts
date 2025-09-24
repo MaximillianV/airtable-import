@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AuthResponse, Settings, ConnectionTestResult, ImportSession, TableTestResult, DiscoverTablesResult, DiscoveredTable } from '../types';
+import { AuthResponse, Settings, ConnectionTestResult, ImportSession, TableTestResult, DiscoverTablesResult, DiscoveredTable, RelationshipAnalysisResult } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -129,6 +129,12 @@ export const importAPI = {
 
   retryTable: async (sessionId: string, tableName: string) => {
     const response = await api.post('/import/retry-table', { sessionId, tableName });
+    return response.data;
+  },
+
+  // Relationship Analysis API
+  analyzeRelationships: async (): Promise<RelationshipAnalysisResult> => {
+    const response = await api.post('/import/analyze-relationships');
     return response.data;
   },
 };

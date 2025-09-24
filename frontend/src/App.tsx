@@ -10,6 +10,7 @@ import SessionDetail from './components/SessionDetail';
 import AdminSettings from './components/admin/settings/AdminSettings';
 import Users from './components/admin/users/Users';
 import Profile from './components/admin/Profile';
+import ERDSchemaAnalyzer from './components/ERDSchemaAnalyzer';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -41,6 +42,9 @@ function App() {
               {/* Import functionality */}
               <Route path="import" element={<Import />} />
               <Route path="sessions/:sessionId" element={<SessionDetail />} />
+              
+              {/* ERD Schema Analyzer */}
+              <Route path="erd" element={<ERDSchemaAnalyzer />} />
               
               {/* Users management section */}
               <Route path="users" element={<Users />} />

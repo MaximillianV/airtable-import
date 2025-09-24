@@ -181,6 +181,17 @@ const Dashboard: React.FC = () => {
                   Manage Users
                 </Link>
               </div>
+              
+              <div style={styles.card}>
+                <div style={styles.cardIcon}>🔗</div>
+                <h3 style={styles.cardTitle}>ERD Schema Analyzer</h3>
+                <p style={styles.cardDescription}>
+                  Visualize database relationships and analyze your Airtable schema structure.
+                </p>
+                <Link to="/admin/erd" style={styles.secondaryButton}>
+                  Analyze Schema
+                </Link>
+              </div>
             </div>
 
             {/* Redis Monitor Section */}
