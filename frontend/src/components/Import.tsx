@@ -4,6 +4,7 @@ import { settingsAPI, importAPI } from '../services/api';
 import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
 import SchemaMappingWizard from './SchemaMappingWizard';
+import DebugConsole from './DebugConsole';
 
 const Import: React.FC = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -17,6 +18,7 @@ const Import: React.FC = () => {
   const [error, setError] = useState('');
   const [showSchemaMappingWizard, setShowSchemaMappingWizard] = useState(false);
   const [mappingConfiguration, setMappingConfiguration] = useState<any>(null);
+  const [showDebugConsole, setShowDebugConsole] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +30,27 @@ const Import: React.FC = () => {
         ...prev,
         [data.table]: data
       }));
+      
+      // Send debug messages to console if enabled
+      if (settings?.debugMode && showDebugConsole && (window as any).debugLog) {
+        const debugLog = (window as any).debugLog;
+        
+        let level: 'info' | 'success' | 'error' | 'warn' = 'info';
+        if (data.status === 'completed') {
+          level = 'success';
+        } else if (data.status === 'error') {
+          level = 'error';
+        } else if (data.status === 'starting') {
+          level = 'info';
+        }
+        
+        debugLog(level, `${data.table}: ${data.message || data.status}`, {
+          status: data.status,
+          recordsProcessed: data.recordsProcessed,
+          totalRecords: data.totalRecords,
+          timestamp: new Date().toISOString()
+        });
+      }
     });
 
     return () => {
@@ -267,9 +290,22 @@ const Import: React.FC = () => {
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>Import from Airtable</h1>
-        <Link to="/dashboard" style={styles.backButton}>
-          ← Back to Dashboard
-        </Link>
+        <div style={styles.headerActions}>
+          {settings?.debugMode && (
+            <button
+              onClick={() => setShowDebugConsole(!showDebugConsole)}
+              style={{
+                ...styles.debugButton,
+                backgroundColor: showDebugConsole ? '#4f46e5' : '#6b7280'
+              }}
+            >
+              🔧 Debug Console
+            </button>
+          )}
+          <Link to="/dashboard" style={styles.backButton}>
+            ← Back to Dashboard
+          </Link>
+        </div>
       </header>
 
       {/* Schema Mapping Wizard */}
@@ -500,6 +536,14 @@ const Import: React.FC = () => {
         )}
         </div>
       )}
+
+      {/* Debug Console */}
+      {settings?.debugMode && (
+        <DebugConsole
+          isVisible={showDebugConsole}
+          onToggle={() => setShowDebugConsole(!showDebugConsole)}
+        />
+      )}
     </div>
   );
 };
@@ -523,6 +567,21 @@ const styles = {
     color: '#111827',
     fontSize: '24px',
     fontWeight: '600',
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  debugButton: {
+    padding: '8px 12px',
+    fontSize: '12px',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    transition: 'background-color 0.2s',
   },
   backButton: {
     color: '#6b7280',

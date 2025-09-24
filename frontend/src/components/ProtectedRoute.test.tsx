@@ -39,7 +39,7 @@ const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children, user, loa
 describe('ProtectedRoute Component', () => {
   test('renders children when user is authenticated', () => {
     // Mock authenticated state with a valid user
-    const mockUser: User = { id: 1, email: 'test@example.com' };
+    const mockUser: User = { id: 1, email: 'test@example.com', role: 'USER' };
     
     render(
       <MockAuthProvider user={mockUser} loading={false}>

@@ -1,12 +1,23 @@
 /**
  * Schema Mapping Wizard Component
  * 
- * Provides comprehensive interface for previewing and configuring database schema mappings.
+ * Provides comprehensive interface for previewing and conf      console.log('🔄 Starting schema preview request...');
+      const token = localStorage.getItem('token');
+      console.log('🔑 Token exists:', !!token);
+      
+      const data = await importAPI.getSchemaPreview();
+      console.log('✅ Schema preview response received:', {
+        dataType: typeof data,
+        hasSuccess: data?.success,
+        tableCount: data?.tables?.length
+      });
+      
+      setSchemaData(data);se schema mappings.
  * Shows all Airtable tables and columns with naming conversion options.
  * Allows selection between different naming strategies and manual overrides.
  */
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { importAPI } from '../services/api';
 
 // TypeScript interfaces for schema mapping data
 interface ColumnPreview {
@@ -100,13 +111,35 @@ const SchemaMappingWizard: React.FC<SchemaMappingWizardProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await api.get('/api/import/schema-preview');
-      setSchemaData(response.data);
+      console.log('🔄 Starting schema preview request...');
+      const token = localStorage.getItem('token');
+      console.log('🔑 Token exists:', !!token);
       
-      console.log('📋 Schema preview loaded:', response.data);
+      const data = await importAPI.getSchemaPreview();
+      console.log('✅ Schema preview response received:', {
+        dataType: typeof data,
+        hasSuccess: data?.success,
+        tableCount: data?.tables?.length
+      });
+      
+      if (data && data.success) {
+        setSchemaData(data);
+        console.log('📋 Schema preview data set successfully');
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
     } catch (error: any) {
       console.error('Failed to load schema preview:', error);
-      setError(error.response?.data?.error || 'Failed to load schema preview');
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          'Failed to load schema preview';
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      setError(`Schema preview error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

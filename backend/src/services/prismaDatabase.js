@@ -67,6 +67,7 @@ class PrismaDatabaseService {
         select: {
           id: true,
           email: true,
+          role: true,
           createdAt: true,
         },
       });

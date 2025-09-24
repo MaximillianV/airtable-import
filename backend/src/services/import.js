@@ -1,4 +1,4 @@
-const { AirtableService } = require('./airtable');
+const AirtableService = require('./airtable');
 const { ImportDatabaseService } = require('./importDatabase');
 const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
@@ -38,9 +38,56 @@ class ImportService {
   }
 
   emitProgress(sessionId, data) {
+    // Emit to local callbacks for backward compatibility
     const callback = this.progressCallbacks.get(sessionId);
     if (callback) {
       callback(data);
+    }
+    
+    // Emit to Socket.IO for real-time updates in frontend
+    if (global.socketIO) {
+      const progressData = {
+        sessionId,
+        table: data.table,
+        status: data.status,
+        message: data.message,
+        recordsProcessed: data.recordsProcessed || 0,
+        totalRecords: data.totalRecords || 0,
+        skippedRecords: data.skippedRecords || 0,
+        progress: data.totalRecords > 0 ? Math.round((data.recordsProcessed || 0) / data.totalRecords * 100) : 0,
+        timestamp: new Date().toISOString()
+      };
+      
+      global.socketIO.to(`progress-${sessionId}`).emit('import-progress', progressData);
+      
+      // Debug logging if enabled - send to frontend debug console
+      if (global.debugMode) {
+        console.log(`🔄 Progress emitted for session ${sessionId}:`, progressData);
+        this.debugLog(sessionId, 'info', `${data.status.toUpperCase()}: ${data.message}`, {
+          table: data.table,
+          progress: progressData.progress + '%',
+          records: `${data.recordsProcessed || 0}/${data.totalRecords || 0}`
+        });
+      }
+    }
+  }
+
+  /**
+   * Sends debug messages to the frontend debug console via Socket.IO.
+   * Only sends messages when debug mode is enabled globally.
+   */
+  debugLog(sessionId, level, message, data = null) {
+    if (global.debugMode && global.socketIO && sessionId) {
+      const debugData = {
+        sessionId,
+        level, // 'info', 'warn', 'error', 'success'
+        message,
+        data,
+        timestamp: new Date().toISOString()
+      };
+      
+      global.socketIO.to(`progress-${sessionId}`).emit('debug-log', debugData);
+      console.log(`🐛 [${level.toUpperCase()}] ${message}`, data ? data : '');
     }
   }
 
@@ -48,6 +95,15 @@ class ImportService {
     const { overwrite = false } = options;
     
     try {
+      console.log(`📋 ImportService.importTable called for: ${tableName} (session: ${sessionId}, overwrite: ${overwrite})`);
+      
+      // Send debug log to frontend if debug mode is enabled
+      this.debugLog(sessionId, 'info', `🚀 Starting import for table: ${tableName}`, {
+        tableName,
+        overwrite,
+        sessionId
+      });
+      
       this.emitProgress(sessionId, {
         table: tableName,
         status: 'starting',
@@ -72,6 +128,15 @@ class ImportService {
         tableName,
         (progress) => this.emitProgress(sessionId, progress)
       );
+      
+      console.log(`✅ Records fetched from Airtable table '${tableName}': ${records ? records.length : 0} records`);
+      
+      // Send debug log to frontend
+      this.debugLog(sessionId, 'info', `✅ Fetched ${records ? records.length : 0} records from Airtable table: ${tableName}`, {
+        tableName,
+        recordCount: records ? records.length : 0,
+        hasRecords: !!(records && records.length > 0)
+      });
 
       console.log(`📊 Airtable returned:`, {
         tableName,
@@ -193,6 +258,17 @@ class ImportService {
         totalRecords: records.length
       });
 
+      // Log successful completion
+      console.log(`✅ Successfully completed import for table '${tableName}': ${insertResult.insertedCount} records inserted`);
+      
+      // Send debug log to frontend
+      this.debugLog(sessionId, 'success', `✅ Successfully imported table: ${tableName}`, {
+        tableName,
+        processedRecords: insertResult.insertedCount,
+        totalRecords: records.length,
+        mode: 'import'
+      });
+
       return {
         tableName: sanitizedTableName,
         success: true,
@@ -206,6 +282,15 @@ class ImportService {
       };
 
     } catch (error) {
+      console.error(`❌ Error importing table '${tableName}':`, error.message);
+      
+      // Send debug log to frontend
+      this.debugLog(sessionId, 'error', `❌ Error importing table: ${tableName}`, {
+        tableName,
+        error: error.message,
+        stack: error.stack
+      });
+      
       this.emitProgress(sessionId, {
         table: tableName,
         status: 'error',
@@ -220,11 +305,81 @@ class ImportService {
     const { overwrite = false } = options;
     const results = [];
     
-    for (const tableName of tableNames) {
+    console.log(`🔄 ImportService.importMultipleTables called with:`, {
+      sessionId,
+      tableCount: tableNames.length,
+      tables: tableNames,
+      overwrite,
+      debugMode: global.debugMode
+    });
+    
+    // Send debug log to frontend if debug mode is enabled
+    this.debugLog(sessionId, 'info', `Starting import of ${tableNames.length} tables`, {
+      tables: tableNames,
+      overwrite,
+      debugMode: global.debugMode
+    });
+    
+    // Emit initial progress showing all tables waiting
+    for (let i = 0; i < tableNames.length; i++) {
+      const tableName = tableNames[i];
+      this.emitProgress(sessionId, {
+        table: tableName,
+        status: 'waiting',
+        message: `Waiting in queue (${i + 1} of ${tableNames.length})...`,
+        recordsProcessed: 0,
+        totalRecords: 0,
+        position: i + 1,
+        totalTables: tableNames.length
+      });
+    }
+    
+    // Process tables sequentially
+    for (let i = 0; i < tableNames.length; i++) {
+      const tableName = tableNames[i];
+      
       try {
+        // Emit status showing current table is starting
+        this.emitProgress(sessionId, {
+          table: tableName,
+          status: 'starting',
+          message: `Starting import (${i + 1} of ${tableNames.length})...`,
+          recordsProcessed: 0,
+          totalRecords: 0,
+          position: i + 1,
+          totalTables: tableNames.length
+        });
+        
+        if (global.debugMode) {
+          console.log(`🔄 Starting import for table ${i + 1}/${tableNames.length}: ${tableName}`);
+        }
+        
         const result = await this.importTable(tableName, sessionId, { overwrite });
         results.push(result); // Result already includes success: true
+        
+        if (global.debugMode) {
+          console.log(`✅ Completed import for table ${tableName}:`, {
+            success: result.success,
+            records: result.processedRecords,
+            mode: result.mode
+          });
+        }
+        
       } catch (error) {
+        console.error(`❌ Failed to import table ${tableName}:`, error.message);
+        
+        // Emit error status for this table
+        this.emitProgress(sessionId, {
+          table: tableName,
+          status: 'error',
+          message: `Import failed: ${error.message}`,
+          recordsProcessed: 0,
+          totalRecords: 0,
+          position: i + 1,
+          totalTables: tableNames.length,
+          error: error.message
+        });
+        
         results.push({
           tableName,
           success: false,

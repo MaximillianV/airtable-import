@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const { requireSettingsPermission, requireDebugPermission, hasPermission } = require('../middleware/permissions');
 const ImportService = require('../services/import');
 const DatabaseService = require('../services/database');
 
@@ -24,10 +25,11 @@ async function initializeSettingsService() {
 initializeSettingsService();
 
 /**
- * Get user settings endpoint
- * Retrieves settings from Prisma database with sensitive data sanitization
+ * GET /api/settings - Retrieve current system settings
+ * Returns configuration settings including API keys and database connection info
+ * Requires ADMIN or SUPERADMIN permissions for access
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requireSettingsPermission, async (req, res) => {
   try {
     // Get settings from database using Prisma
     const settings = await db.getSettings(req.user.userId);
@@ -49,6 +51,7 @@ router.get('/', authenticateToken, async (req, res) => {
       databaseUrl: settings?.databaseUrl ? (databaseUrlStatus === 'default' ? '***DEFAULT***' : '***CONFIGURED***') : '',
       databaseUrlStatus: databaseUrlStatus,
       airtableApiKey: settings?.airtableApiKey ? '***CONFIGURED***' : '',
+      debugMode: settings?.debugMode || false,
       lastUpdated: settings?.updatedAt || null
     };
 
@@ -63,9 +66,14 @@ router.get('/', authenticateToken, async (req, res) => {
  * Update user settings endpoint
  * Saves settings to Prisma database with validation
  */
-router.post('/', authenticateToken, async (req, res) => {
+/**
+ * POST /api/settings - Update system settings
+ * Saves configuration settings to database including API keys and connection info
+ * Requires ADMIN or SUPERADMIN permissions for modifications
+ */
+router.post('/', authenticateToken, requireSettingsPermission, async (req, res) => {
   try {
-    const { airtableApiKey, airtableBaseId, databaseUrl } = req.body;
+    const { airtableApiKey, airtableBaseId, databaseUrl, debugMode } = req.body;
 
     // Get existing settings to support partial updates
     const userId = req.user.userId;
@@ -93,6 +101,27 @@ router.post('/', authenticateToken, async (req, res) => {
       updateData.databaseUrl = databaseUrl;
     } else if (existingSettings?.databaseUrl) {
       updateData.databaseUrl = existingSettings.databaseUrl;
+    }
+    
+    // Update debug mode if provided (boolean field)
+    // Debug mode requires special permissions - only SUPERADMIN and ADMIN can modify
+    if (debugMode !== undefined) {
+      // Check if user has debug permissions before allowing debug mode changes
+      if (!hasPermission(req.user, 'debug')) {
+        return res.status(403).json({ 
+          error: 'Debug mode access requires ADMIN or SUPERADMIN permissions',
+          feature: 'debugMode',
+          userRole: req.user.role
+        });
+      }
+      
+      updateData.debugMode = Boolean(debugMode);
+      // Set global debug flag for real-time logging
+      global.debugMode = Boolean(debugMode);
+      console.log(`🔧 Debug mode ${debugMode ? 'enabled' : 'disabled'} by ${req.user.email} (${req.user.role})`);
+    } else if (existingSettings?.debugMode !== undefined) {
+      updateData.debugMode = existingSettings.debugMode;
+      global.debugMode = existingSettings.debugMode;
     }
 
     // Validate that we have required fields after merging

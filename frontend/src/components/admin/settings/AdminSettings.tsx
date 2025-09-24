@@ -17,6 +17,7 @@ interface Settings {
   airtableBaseId: string;
   databaseUrl: string;
   databaseUrlStatus?: 'configured' | 'default';
+  debugMode?: boolean;
 }
 
 /**
@@ -41,7 +42,8 @@ const AdminSettings: React.FC = () => {
     airtableApiKey: '',
     airtableBaseId: '',
     databaseUrl: '',
-    databaseUrlStatus: 'default'
+    databaseUrlStatus: 'default',
+    debugMode: false
   });
   const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +88,8 @@ const AdminSettings: React.FC = () => {
         airtableApiKey: settingsData.airtableApiKey || '',
         airtableBaseId: settingsData.airtableBaseId || '',
         databaseUrl: settingsData.databaseUrl || '',
-        databaseUrlStatus: settingsData.databaseUrlStatus || 'default'
+        databaseUrlStatus: settingsData.databaseUrlStatus || 'default',
+        debugMode: settingsData.debugMode || false
       });
 
       // Load import sessions
@@ -226,6 +229,32 @@ const AdminSettings: React.FC = () => {
   };
 
   /**
+   * Handles debug mode toggle changes.
+   * Immediately saves the debug mode setting to the server.
+   */
+  const handleDebugModeToggle = async (enabled: boolean) => {
+    try {
+      // Update local state immediately for responsive UI
+      setSettings(prev => ({ ...prev, debugMode: enabled }));
+      
+      // Save to server
+      await settingsAPI.save({ debugMode: enabled });
+      
+      setSuccess(`Debug mode ${enabled ? 'enabled' : 'disabled'} successfully`);
+      setError('');
+    } catch (err: any) {
+      console.error('Failed to update debug mode:', err);
+      
+      // Revert local state on error
+      setSettings(prev => ({ ...prev, debugMode: !enabled }));
+      
+      const errorMessage = err.response?.data?.error || 'Failed to update debug mode. Please try again.';
+      setError(errorMessage);
+      setSuccess('');
+    }
+  };
+
+  /**
    * Renders a settings field with inline editing.
    */
   const renderField = (
@@ -320,6 +349,27 @@ const AdminSettings: React.FC = () => {
         {renderField('airtableApiKey', 'Airtable API Key', 'password', 'Enter your Airtable API key')}
         {renderField('airtableBaseId', 'Airtable Base ID', 'text', 'Enter your Airtable base ID')}
         {renderField('databaseUrl', 'Database URL', 'password', 'Enter your database connection URL')}
+      </div>
+
+      {/* Debug Configuration */}
+      <div style={{ marginBottom: '24px', padding: '16px', border: '2px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+        <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px 0' }}>🐛 Debug Configuration</h4>
+        <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 16px 0' }}>Enable verbose logging during imports for troubleshooting</p>
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={settings.debugMode || false}
+            onChange={(e) => handleDebugModeToggle(e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Enable Debug Mode</span>
+        </label>
+        
+        <p style={{ fontSize: '12px', color: '#6b7280', margin: '8px 0 0 26px', lineHeight: '1.4' }}>
+          When enabled, detailed logging information will be displayed during imports, 
+          including progress details, connection status, and processing steps.
+        </p>
       </div>
 
       {/* Connection Testing */}

@@ -73,19 +73,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token with user information
+    // Generate JWT token with user information including role for permission checking
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    console.log(`✅ User logged in: ${email}`);
+    console.log(`✅ User logged in: ${email} (role: ${user.role})`);
     res.json({
       token,
       user: {
         id: user.id,
-        email: user.email
+        email: user.email,
+        role: user.role
       }
     });
   } catch (error) {
@@ -124,19 +125,20 @@ router.post('/register', async (req, res) => {
     // Create new user using Prisma
     const newUser = await db.createUser(email, hashedPassword);
 
-    // Generate JWT token for immediate login
+    // Generate JWT token for immediate login including role information
     const token = jwt.sign(
-      { userId: newUser.id, email: newUser.email },
+      { userId: newUser.id, email: newUser.email, role: newUser.role },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    console.log(`✅ New user registered: ${email}`);
+    console.log(`✅ New user registered: ${email} (role: ${newUser.role})`);
     res.status(201).json({
       token,
       user: {
         id: newUser.id,
-        email: newUser.email
+        email: newUser.email,
+        role: newUser.role
       }
     });
   } catch (error) {

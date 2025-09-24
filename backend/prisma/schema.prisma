@@ -15,6 +15,7 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
+  role      UserRole @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -25,13 +26,21 @@ model User {
   @@map("users")
 }
 
-// User settings and Airtable configuration
+//User authentication and configuration database models
+
+// User role enumeration for permission management
+enum UserRole {
+  USER      // Regular user with basic import permissions
+  ADMIN     // Admin user with settings management  
+  SUPERADMIN // Superadmin with all system permissions
+}
 model Settings {
   id              Int     @id @default(autoincrement())
   userId          Int     @unique
   airtableApiKey  String? // Encrypted
   airtableBaseId  String?
   databaseUrl     String?
+  debugMode       Boolean @default(false) // Debug mode for verbose logging
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -115,6 +115,58 @@ router.get('/schema-preview', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Test debug logging endpoint - sends a test debug message via Socket.IO
+ * Used to verify that debug logging integration is working correctly
+ */
+router.get('/test-debug', authenticateToken, async (req, res) => {
+  try {
+    const { sessionId = 'test-session' } = req.query;
+    
+    // Get settings to check debug mode
+    const userSettings = await getUserSettings(req.user.id);
+    
+    // Set global debug mode based on user settings
+    global.debugMode = userSettings?.debugMode || false;
+    
+    if (global.socketIO) {
+      // Send test debug message
+      const debugData = {
+        sessionId,
+        level: 'info',
+        message: '🧪 Test debug message from backend - Socket.IO integration working!',
+        data: { 
+          test: true, 
+          timestamp: new Date().toISOString(),
+          debugMode: global.debugMode 
+        },
+        timestamp: new Date().toISOString()
+      };
+      
+      // Send to all clients for testing (in real imports, this would be to specific session room)
+      global.socketIO.emit('debug-log', debugData);
+      console.log('🧪 Test debug message sent via Socket.IO:', debugData.message);
+      
+      res.json({
+        success: true,
+        message: 'Debug test message sent successfully',
+        debugMode: global.debugMode,
+        debugData
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Socket.IO not available - debug messages cannot be sent'
+      });
+    }
+  } catch (error) {
+    console.error('Test debug error:', error);
+    res.status(500).json({
+      error: 'Failed to send test debug message: ' + error.message
+    });
+  }
+});
+
+/**
  * Start import process endpoint
  * Creates import session in database and starts Airtable data import
  * Accepts either legacy format (array of table names) or enhanced format (array of table objects)
@@ -185,6 +237,9 @@ router.post('/start', authenticateToken, async (req, res) => {
           status: 'RUNNING'
         });
 
+        // Initialize debug mode from user settings
+        global.debugMode = settings.debugMode || false;
+        
         // Create and configure import service
         const importService = new ImportService();
         
@@ -194,13 +249,36 @@ router.post('/start', authenticateToken, async (req, res) => {
           hasBaseId: !!airtableBaseId,
           baseId: airtableBaseId,
           hasDatabaseUrl: !!databaseUrl,
-          databaseUrl: databaseUrl ? databaseUrl.substring(0, 20) + '...' : null
+          databaseUrl: databaseUrl ? databaseUrl.substring(0, 20) + '...' : null,
+          debugMode: global.debugMode
         });
         
         await importService.connect(airtableApiKey, airtableBaseId, databaseUrl);
         
         // Import all tables and get results
+        console.log(`🚀 Starting importMultipleTables for session ${sessionId} with tables:`, tablesToImport);
+        if (global.debugMode) {
+          console.log(`🐛 [DEBUG] Import parameters:`, { 
+            sessionId, 
+            tableCount: tablesToImport.length, 
+            overwrite, 
+            debugMode: global.debugMode 
+          });
+        }
+        
         const results = await importService.importMultipleTables(tablesToImport, sessionId, { overwrite });
+        
+        console.log(`✅ importMultipleTables completed for session ${sessionId}. Results:`, results.length);
+        if (global.debugMode) {
+          console.log(`🐛 [DEBUG] Import results summary:`, results.map(r => ({
+            table: r.tableName,
+            success: r.success,
+            processed: r.processedRecords,
+            total: r.totalRecords,
+            mode: r.mode,
+            error: r.error
+          })));
+        }
         
         // Calculate success metrics from results array
         const successfulImports = results.filter(r => r.success);
