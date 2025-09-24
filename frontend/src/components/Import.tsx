@@ -375,12 +375,21 @@ const Import: React.FC = () => {
         selectedTables.includes(table.name)
       );
 
-      console.log(`Starting import for ${selectedTableObjects.length} tables with schema mapping:`, 
+      console.log(`Starting import for ${selectedTableObjects.length} tables with full configuration:`, 
         selectedTableObjects.map(t => `${t.name} (${t.recordCount} records)`).join(', '));
 
-      // TODO: Update the API call to include mapping configuration
-      // For now, start with existing API - we'll enhance this later
-      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite);
+      // Combine all configurations for the import
+      const fullConfig = {
+        mapping: mappingConfig,
+        relationships: relationshipConfig?.relationships || [],
+        fieldTypes: relationshipConfig?.fieldConfig || {},
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('🧙‍♂️ Full import configuration:', fullConfig);
+
+      // Start import with complete configuration
+      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite, fullConfig);
       setCurrentSession(result);
       
       // Connect to socket for real-time updates
@@ -643,7 +652,7 @@ const Import: React.FC = () => {
                     cursor: selectedTables.length === 0 ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Configure Schema & Import ({selectedTables.length} tables)
+                  🧙‍♂️ Configure Schema & Relationships ({selectedTables.length} tables)
                 </button>
               </div>
             )}

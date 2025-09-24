@@ -90,13 +90,16 @@ export const settingsAPI = {
 };
 
 export const importAPI = {
-  start: async (tableNames: string[], tables?: DiscoveredTable[], overwrite?: boolean) => {
+  start: async (tableNames: string[], tables?: DiscoveredTable[], overwrite?: boolean, config?: any) => {
     const payload: any = { tableNames };
     if (tables && tables.length > 0) {
       payload.tables = tables;
     }
     if (overwrite !== undefined) {
       payload.overwrite = overwrite;
+    }
+    if (config) {
+      payload.schemaConfig = config;
     }
     const response = await api.post('/import/start', payload);
     return response.data;
@@ -147,6 +150,18 @@ export const importAPI = {
   // Field Type Analysis API - analyzes special Airtable field types
   analyzeFieldTypes: async (): Promise<any> => {
     const response = await api.post('/import/analyze-field-types');
+    return response.data;
+  },
+
+  // Data Pattern Analysis API - performs intelligent relationship detection using statistical analysis
+  analyzeDataPatterns: async (tables: any[]): Promise<any> => {
+    const response = await api.post('/import/analyze-data-patterns', { tables });
+    return response.data;
+  },
+
+  // Apply Schema Configuration API - applies user-confirmed schema configuration to import
+  applySchemaConfiguration: async (config: any): Promise<any> => {
+    const response = await api.post('/import/apply-schema-configuration', { config });
     return response.data;
   },
 };

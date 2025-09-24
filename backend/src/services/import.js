@@ -1,6 +1,7 @@
 const AirtableService = require('./airtable');
 const ImportDatabaseService = require('./importDatabase');
 const redisSessionService = require('./redisSession');
+const ProgressTracker = require('./progressTracker');
 const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
 class ImportService {
@@ -8,6 +9,15 @@ class ImportService {
     this.airtableService = new AirtableService();
     this.importDatabaseService = new ImportDatabaseService();
     this.progressCallbacks = new Map();
+    // Initialize progress tracker with socket service
+    this.progressTracker = new ProgressTracker({
+      emit: (event, data) => {
+        // Use global socketIO if available
+        if (global.socketIO) {
+          global.socketIO.emit(event, data);
+        }
+      }
+    });
   }
 
   async connect(airtableApiKey, airtableBaseId, databaseUrl) {
@@ -132,10 +142,21 @@ class ImportService {
 
       const records = await this.airtableService.getTableRecords(
         tableName,
-        (progress) => this.emitProgress(sessionId, progress)
+        (progress) => {
+          this.emitProgress(sessionId, progress);
+          // Update progress tracker with record processing updates
+          if (progress.recordsProcessed !== undefined && progress.totalRecords !== undefined) {
+            this.progressTracker.updateTableProgress(sessionId, tableName, progress.recordsProcessed);
+          }
+        }
       );
       
       console.log(`✅ Records fetched from Airtable table '${tableName}': ${records ? records.length : 0} records`);
+      
+      // Update progress tracker with total record count now that we know it
+      if (records && records.length > 0) {
+        this.progressTracker.startTableProcessing(sessionId, tableName, records.length);
+      }
       
       // Send debug log to frontend
       this.debugLog(sessionId, 'info', `✅ Fetched ${records ? records.length : 0} records from Airtable table: ${tableName}`, {
@@ -336,15 +357,16 @@ class ImportService {
     await redisSessionService.storeSession(sessionId, sessionData).catch(error => {
       console.warn('⚠️ Failed to store session in Redis:', error.message);
     });
-    
+
+    // Initialize TQDM-style progress tracking
+    this.progressTracker.initializeSession(sessionId, tableNames, { isBackground: true });
+
     // Send debug log to frontend if debug mode is enabled
     this.debugLog(sessionId, 'info', `Starting import of ${tableNames.length} tables`, {
       tables: tableNames,
       overwrite,
       debugMode: global.debugMode
-    });
-    
-    // Emit initial progress showing all tables waiting
+    });    // Emit initial progress showing all tables waiting
     for (let i = 0; i < tableNames.length; i++) {
       const tableName = tableNames[i];
       this.emitProgress(sessionId, {
@@ -378,8 +400,14 @@ class ImportService {
           console.log(`🔄 Starting import for table ${i + 1}/${tableNames.length}: ${tableName}`);
         }
         
+        // Start progress tracking for this table
+        this.progressTracker.startTableProcessing(sessionId, tableName, 0); // We'll update with real count
+        
         const result = await this.importTable(tableName, sessionId, { overwrite });
         results.push(result); // Result already includes success: true
+        
+        // Complete progress tracking for this table
+        this.progressTracker.completeTableProcessing(sessionId, tableName, result);
         
         if (global.debugMode) {
           console.log(`✅ Completed import for table ${tableName}:`, {
@@ -391,6 +419,9 @@ class ImportService {
         
       } catch (error) {
         console.error(`❌ Failed to import table ${tableName}:`, error.message);
+        
+        // Mark table as failed in progress tracker
+        this.progressTracker.failTableProcessing(sessionId, tableName, error);
         
         // Emit error status for this table
         this.emitProgress(sessionId, {
@@ -447,6 +478,9 @@ class ImportService {
       console.warn('⚠️ Failed to publish session completion:', error.message);
     });
     
+    // Complete the progress tracking session
+    this.progressTracker.completeSession(sessionId, { success: failedTables === 0, ...completionData });
+
     console.log(`🏁 Import session ${sessionId} completed:`, {
       status: completionData.status,
       successfulTables,

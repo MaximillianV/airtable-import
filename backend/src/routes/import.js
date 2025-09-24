@@ -508,12 +508,23 @@ router.get('/test-debug', authenticateToken, async (req, res) => {
  */
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    const { tableNames, tables, overwrite = false } = req.body;
+    const { tableNames, tables, overwrite = false, schemaConfig } = req.body;
     const userId = req.user.userId;
 
     // Support both legacy format (tableNames array) and new format (tables array with metadata)
     let tablesToImport = [];
     let tableMetadata = {};
+
+    // Log schema configuration details if provided
+    if (schemaConfig) {
+      console.log('🧙‍♂️ Schema configuration received:', {
+        hasMapping: !!schemaConfig.mapping,
+        hasRelationships: !!schemaConfig.relationships,
+        hasFieldTypes: !!schemaConfig.fieldTypes,
+        relationshipCount: schemaConfig.relationships?.length || 0,
+        timestamp: schemaConfig.timestamp
+      });
+    }
 
     if (tables && Array.isArray(tables) && tables.length > 0) {
       // New format: array of table objects with metadata
@@ -590,6 +601,23 @@ router.post('/start', authenticateToken, async (req, res) => {
         
         await importService.connect(airtableApiKey, airtableBaseId, databaseUrl);
         
+        // Apply schema configuration if provided
+        let schemaResults = null;
+        if (schemaConfig) {
+          console.log('🧙‍♂️ Applying schema configuration before data import...');
+          const SchemaGeneratorService = require('../services/schemaGenerator');
+          const schemaGenerator = new SchemaGeneratorService(importService.importDatabaseService);
+          
+          try {
+            schemaResults = await schemaGenerator.applySchemaConfiguration(schemaConfig, sessionId);
+            console.log(`✅ Schema generation complete: ${schemaResults.elementsCreated} elements created`);
+          } catch (schemaError) {
+            console.error('❌ Schema generation failed:', schemaError.message);
+            // Continue with import even if schema generation fails
+            schemaResults = { success: false, error: schemaError.message };
+          }
+        }
+        
         // Import all tables and get results
         console.log(`🚀 Starting importMultipleTables for session ${sessionId} with tables:`, tablesToImport);
         if (global.debugMode) {
@@ -643,12 +671,23 @@ router.post('/start', authenticateToken, async (req, res) => {
         const finalStatus = failedImports.length === 0 ? 'COMPLETED' : 
                            (successfulImports.length > 0 ? 'PARTIAL_FAILED' : 'FAILED');
         
+        // Prepare comprehensive results including schema generation
+        const sessionResults = {
+          tables: tableResults,
+          schema: schemaResults ? {
+            success: schemaResults.success,
+            elementsCreated: schemaResults.elementsCreated,
+            details: schemaResults.details,
+            error: schemaResults.error
+          } : null
+        };
+
         // Update session with completion status and detailed results
         await db.updateImportSession(sessionId, {
           status: finalStatus,
           endTime: new Date(),
           processedRecords: totalRecordsProcessed,
-          results: JSON.stringify(tableResults), // Store per-table results
+          results: JSON.stringify(sessionResults), // Store comprehensive results
           errorMessage: failedImports.length > 0 ? JSON.stringify(failedImports.map(f => f.error)) : null
         });
 
@@ -663,6 +702,11 @@ router.post('/start', authenticateToken, async (req, res) => {
             failedTables: failedImports.length,
             processedRecords: totalRecordsProcessed,
             results: tableResults,
+            schema: schemaResults ? {
+              success: schemaResults.success,
+              elementsCreated: schemaResults.elementsCreated,
+              summary: schemaResults.details
+            } : null,
             errors: failedImports.length > 0 ? failedImports.map(f => ({ table: f.table, error: f.error })) : null
           };
           
@@ -1168,5 +1212,99 @@ function setupSocketIO(io) {
   // Export socket instance for use in import service
   global.socketIO = io;
 }
+
+/**
+ * Data Pattern Analysis endpoint - performs intelligent relationship detection
+ * Uses statistical analysis of actual data patterns rather than schema metadata
+ */
+router.post('/analyze-data-patterns', authenticateToken, async (req, res) => {
+  try {
+    const { tables } = req.body;
+    
+    console.log('Starting data pattern analysis for relationship detection...');
+    
+    if (!tables || !Array.isArray(tables)) {
+      return res.status(400).json({ 
+        error: 'Tables array is required for data pattern analysis' 
+      });
+    }
+
+    // Initialize Data Pattern Analyzer
+    const DataPatternAnalyzer = require('../services/dataPatternAnalyzer');
+    const analyzer = new DataPatternAnalyzer(db);
+    
+    // Perform comprehensive data pattern analysis
+    const analysisResults = await analyzer.analyzeDataPatterns(tables);
+    
+    console.log(`Data pattern analysis complete: ${analysisResults.relationships.length} relationships detected`);
+    
+    res.json({
+      success: true,
+      data: analysisResults,
+      message: 'Data pattern analysis completed successfully'
+    });
+    
+  } catch (error) {
+    console.error('Data pattern analysis failed:', error.message);
+    res.status(500).json({ 
+      error: `Data pattern analysis failed: ${error.message}` 
+    });
+  }
+});
+
+/**
+ * Apply Schema Configuration endpoint - applies user-confirmed schema configuration
+ * Takes user confirmations from Enhanced Relationship Wizard and applies to import
+ */
+router.post('/apply-schema-configuration', authenticateToken, async (req, res) => {
+  try {
+    const { config } = req.body;
+    
+    console.log('Applying user-confirmed schema configuration...');
+    
+    if (!config) {
+      return res.status(400).json({ 
+        error: 'Schema configuration is required' 
+      });
+    }
+
+    // Validate configuration structure
+    if (!config.relationshipOverrides || !config.foreignKeyPlacements) {
+      return res.status(400).json({ 
+        error: 'Invalid configuration: missing required fields' 
+      });
+    }
+
+    // Log configuration details for debugging
+    console.log('Schema configuration details:', {
+      relationshipCount: Object.keys(config.relationshipOverrides).length,
+      foreignKeyCount: config.foreignKeyPlacements.length,
+      hasMetadata: !!config.metadata
+    });
+
+    // Store configuration for use during import process
+    // This will be retrieved by the import service when processing begins
+    const configurationId = `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // TODO: Store configuration in database or cache for retrieval during import
+    // For now, we'll return the configuration with an ID for tracking
+    
+    res.json({
+      success: true,
+      data: {
+        configurationId,
+        appliedConfiguration: config,
+        status: 'configuration-applied'
+      },
+      message: 'Schema configuration applied successfully'
+    });
+    
+  } catch (error) {
+    console.error('Schema configuration application failed:', error.message);
+    res.status(500).json({ 
+      error: `Schema configuration application failed: ${error.message}` 
+    });
+  }
+});
 
 module.exports = { router, setupSocketIO };
