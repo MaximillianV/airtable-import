@@ -20,6 +20,59 @@ class ImportDatabaseService {
   }
 
   /**
+   * Ensure that a PostgreSQL database exists, creating it if necessary
+   * 
+   * @param {string} connectionString - Original connection string (to connect to postgres for DB creation)
+   * @param {string} databaseName - Name of database to create
+   * @returns {Promise<void>}
+   */
+  async ensureDatabaseExists(connectionString, databaseName) {
+    try {
+      // Parse original connection string to connect to 'postgres' database for admin operations
+      const url = new URL(connectionString);
+      const originalDatabase = url.pathname.substring(1);
+      
+      // Connect to 'postgres' database to check if target database exists
+      url.pathname = '/postgres';
+      const adminConnectionString = url.toString();
+      
+      console.log(`🔍 Checking if database '${databaseName}' exists...`);
+      
+      const adminClient = new Client({ 
+        connectionString: adminConnectionString,
+        ssl: connectionString.includes('localhost') ? false : {
+          rejectUnauthorized: false,
+          checkServerIdentity: () => undefined,
+          requestCert: false,
+          agent: false
+        }
+      });
+      
+      await adminClient.connect();
+      
+      // Check if database exists
+      const result = await adminClient.query(
+        'SELECT 1 FROM pg_database WHERE datname = $1',
+        [databaseName]
+      );
+      
+      if (result.rows.length === 0) {
+        // Database doesn't exist, create it
+        console.log(`🏗️  Creating database '${databaseName}'...`);
+        await adminClient.query(`CREATE DATABASE "${databaseName}"`);
+        console.log(`✅ Database '${databaseName}' created successfully`);
+      } else {
+        console.log(`✅ Database '${databaseName}' already exists`);
+      }
+      
+      await adminClient.end();
+    } catch (error) {
+      console.error(`❌ Error ensuring database '${databaseName}' exists:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Connect to target database for importing Airtable data.
    * If no URL is provided, creates a local SQLite database.
    * For PostgreSQL URLs, automatically creates database name based on Airtable base ID.
@@ -105,17 +158,37 @@ class ImportDatabaseService {
    * @returns {Promise<{success: boolean, dbType: string, location: string}>}
    */
   async connectPostgreSQL(connectionString, airtableBaseId) {
-    // Parse the connection string and modify database name
+    // Parse the connection string to understand the database configuration
     const url = new URL(connectionString);
     const originalDatabase = url.pathname.substring(1); // Remove leading '/'
     const baseIdSafe = airtableBaseId || 'unknown';
-    const newDatabaseName = `airtable_import_data_${baseIdSafe}`;
     
-    // Update the URL with the new database name
-    url.pathname = `/${newDatabaseName}`;
-    const modifiedConnectionString = url.toString();
+    // Determine if this is the default database or a user-configured database
+    const isDefaultDatabase = originalDatabase === 'airtable_import' || 
+                             originalDatabase === 'postgres' || 
+                             originalDatabase === '';
     
-    console.log(`🎯 Connecting to base-specific database: ${newDatabaseName}`);
+    let targetDatabaseName, modifiedConnectionString;
+    
+    if (isDefaultDatabase) {
+      // Default database: Create a base-specific database
+      targetDatabaseName = `airtable_import_data_${baseIdSafe}`;
+      console.log(`🏗️  Using default database - creating base-specific database: ${targetDatabaseName}`);
+      
+      // Create the database if it doesn't exist
+      await this.ensureDatabaseExists(connectionString, targetDatabaseName);
+      
+      // Update connection string to use the new database
+      url.pathname = `/${targetDatabaseName}`;
+      modifiedConnectionString = url.toString();
+    } else {
+      // User-configured database: Use their specified database directly
+      targetDatabaseName = originalDatabase;
+      modifiedConnectionString = connectionString;
+      console.log(`📋 Using user-configured database: ${targetDatabaseName}`);
+    }
+    
+    console.log(`🔗 Connecting to database: ${targetDatabaseName}`);
     
     // Configure connection with SSL settings
     let connectionConfig = { connectionString: modifiedConnectionString };
@@ -128,26 +201,22 @@ class ImportDatabaseService {
       // Remote database - try multiple SSL strategies for DigitalOcean
       const caCertPath = path.join(__dirname, '../../data/ca-certificate.crt');
       
-      // For DigitalOcean databases, try the most permissive SSL settings first
+      // For DigitalOcean databases, apply maximum permissive SSL configuration
       if (modifiedConnectionString.includes('digitalocean.com')) {
-        // Strategy 1: Maximum permissive SSL for DigitalOcean
+        console.log(`🔧 Applying maximum permissive DigitalOcean SSL configuration`);
+        
+        // Set environment variable to bypass all SSL certificate validation
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        
+        // Most permissive SSL configuration possible
         connectionConfig.ssl = {
           rejectUnauthorized: false,
           checkServerIdentity: () => undefined,
           requestCert: false,
-          agent: false,
-          secureProtocol: 'TLSv1_2_method'
+          agent: false
         };
         
-        // Modify connection string to use require SSL mode but don't verify
-        const sslUrl = new URL(modifiedConnectionString);
-        sslUrl.searchParams.set('sslmode', 'require');
-        sslUrl.searchParams.set('sslcert', '');
-        sslUrl.searchParams.set('sslkey', '');
-        sslUrl.searchParams.set('sslrootcert', '');
-        connectionConfig.connectionString = sslUrl.toString();
-        
-        console.log(`⚡ Using maximum permissive SSL for DigitalOcean database`);
+        console.log(`⚠️ SSL certificate validation completely disabled for DigitalOcean`);
       } else if (fs.existsSync(caCertPath)) {
         // Use the CA certificate for other remote databases
         connectionConfig.ssl = {
@@ -170,7 +239,7 @@ class ImportDatabaseService {
       }
     }
     
-    console.log(`🔧 Attempting PostgreSQL connection to ${newDatabaseName} with SSL config:`, {
+    console.log(`🔧 Attempting PostgreSQL connection to ${targetDatabaseName} with SSL config:`, {
       ssl: connectionConfig.ssl !== false ? 'enabled' : 'disabled',
       ca: connectionConfig.ssl && connectionConfig.ssl.ca ? 'certificate loaded' : 'no certificate',
       rejectUnauthorized: connectionConfig.ssl && connectionConfig.ssl.rejectUnauthorized,
@@ -183,12 +252,12 @@ class ImportDatabaseService {
     this.dbType = 'postgresql';
     this.connectionString = modifiedConnectionString;
     
-    console.log(`✅ Connected to PostgreSQL database: ${newDatabaseName}`);
+    console.log(`✅ Connected to PostgreSQL database: ${targetDatabaseName}`);
     
     return {
       success: true,
       dbType: 'postgresql',
-      location: `${newDatabaseName} (${url.host})`
+      location: `${targetDatabaseName} (${url.host})`
     };
   }
 
@@ -282,6 +351,42 @@ class ImportDatabaseService {
     } catch (error) {
       console.error(`❌ Failed to create table '${tableName}' from metadata:`, error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Check if a table exists in the database
+   * 
+   * @param {string} tableName - Name of table to check
+   * @returns {Promise<boolean>} True if table exists, false otherwise
+   */
+  async tableExists(tableName) {
+    try {
+      console.log(`🔍 Checking if table '${tableName}' exists in ${this.dbType} database...`);
+      
+      if (this.dbType === 'sqlite') {
+        // SQLite query to check table existence
+        const result = await this.executeSQL(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name=?", 
+          [tableName]
+        );
+        const exists = result.length > 0;
+        console.log(`📋 SQLite table '${tableName}' exists: ${exists}`);
+        return exists;
+      } else if (this.dbType === 'postgresql') {
+        // PostgreSQL query to check table existence
+        const result = await this.connection.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
+          [tableName]
+        );
+        const exists = result.rows.length > 0;
+        console.log(`📋 PostgreSQL table '${tableName}' exists: ${exists} (found ${result.rows.length} matches)`);
+        return exists;
+      }
+      return false;
+    } catch (error) {
+      console.error(`❌ Error checking if table ${tableName} exists:`, error.message);
+      return false;
     }
   }
 
@@ -524,11 +629,22 @@ class ImportDatabaseService {
       }
     }).join(', ');
 
-    return `CREATE TABLE IF NOT EXISTS "${tableName}" (
-      id SERIAL PRIMARY KEY,
-      ${columnDefinitions},
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`;
+    // Build the CREATE TABLE statement with airtable_id for sync functionality
+    if (this.dbType === 'postgresql') {
+      return `CREATE TABLE IF NOT EXISTS "${tableName}" (
+        id SERIAL PRIMARY KEY,
+        airtable_id VARCHAR(255) UNIQUE NOT NULL,
+        ${columnDefinitions},
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`;
+    } else {
+      return `CREATE TABLE IF NOT EXISTS "${tableName}" (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        airtable_id TEXT UNIQUE NOT NULL,
+        ${columnDefinitions},
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`;
+    }
   }
 
   /**
@@ -569,44 +685,109 @@ class ImportDatabaseService {
    * 
    * @param {string} tableName - Target table name
    * @param {Array} records - Airtable records to insert
-   * @returns {Promise<number>} Number of inserted records
+   * @param {Object} options - Insert options (syncMode, etc.)
+   * @returns {Promise<{insertedCount: number, skippedCount: number}>} Insert results
    */
-  async insertRecords(tableName, records) {
+  async insertRecords(tableName, records, options = {}) {
     try {
       if (!records || records.length === 0) {
-        return 0;
+        return { insertedCount: 0, updatedCount: 0, skippedCount: 0 };
       }
 
+      const { syncMode = false } = options;
       let insertedCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
 
       for (const record of records) {
         if (record.fields) {
-          // Build INSERT statement
-          const fields = Object.keys(record.fields);
-          const values = Object.values(record.fields);
-          
-          // Handle JSON values
-          const processedValues = values.map(value => {
-            if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-              return JSON.stringify(value);
+          try {
+            // Build INSERT statement
+            const fields = Object.keys(record.fields);
+            const values = Object.values(record.fields);
+            
+            // Handle JSON values
+            const processedValues = values.map(value => {
+              if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+                return JSON.stringify(value);
+              }
+              return value;
+            });
+
+            let insertSQL;
+            let queryParams;
+
+            if (syncMode && this.dbType === 'postgresql') {
+              // PostgreSQL UPSERT using ON CONFLICT with tracking
+              const placeholders = fields.map((_, i) => `$${i + 2}`).join(', '); // Start from $2 because $1 is airtable_id
+              const fieldNames = fields.map(f => `"${f}"`).join(', ');
+              const updateSet = fields.map(f => `"${f}" = EXCLUDED."${f}"`).join(', ');
+              
+              // Use RETURNING to detect if it was INSERT or UPDATE
+              insertSQL = `INSERT INTO "${tableName}" (airtable_id, ${fieldNames}) 
+                          VALUES ($1, ${placeholders}) 
+                          ON CONFLICT (airtable_id) DO UPDATE SET ${updateSet}
+                          RETURNING (xmax = 0) AS was_inserted`;
+              queryParams = [record.id, ...processedValues];
+              
+              const result = await this.connection.query(insertSQL, queryParams);
+              if (result.rows[0].was_inserted) {
+                insertedCount++;
+              } else {
+                updatedCount++;
+              }
+            } else if (syncMode && this.dbType === 'sqlite') {
+              // SQLite UPSERT - check if record exists first to track insert vs update
+              const existsSQL = `SELECT 1 FROM "${tableName}" WHERE airtable_id = ?`;
+              const existsResult = await this.executeSQL(existsSQL, [record.id]);
+              const recordExists = existsResult.length > 0;
+              
+              const placeholders = fields.map(() => '?').join(', ');
+              const fieldNames = fields.map(f => `"${f}"`).join(', ');
+              const updateSet = fields.map(f => `"${f}" = excluded."${f}"`).join(', ');
+              
+              insertSQL = `INSERT INTO "${tableName}" (airtable_id, ${fieldNames}) 
+                          VALUES (?, ${placeholders}) 
+                          ON CONFLICT(airtable_id) DO UPDATE SET ${updateSet}`;
+              queryParams = [record.id, ...processedValues];
+              
+              await this.executeSQL(insertSQL, queryParams);
+              if (recordExists) {
+                updatedCount++;
+              } else {
+                insertedCount++;
+              }
+            } else {
+              // Regular INSERT for overwrite mode or when sync isn't supported
+              const placeholders = this.dbType === 'postgresql' 
+                ? fields.map((_, i) => `$${i + 2}`).join(', ')
+                : fields.map(() => '?').join(', ');
+
+              const fieldNames = fields.map(f => `"${f}"`).join(', ');
+              insertSQL = `INSERT INTO "${tableName}" (airtable_id, ${fieldNames}) VALUES (${this.dbType === 'postgresql' ? '$1' : '?'}, ${placeholders})`;
+              queryParams = [record.id, ...processedValues];
+              
+              await this.executeSQL(insertSQL, queryParams);
+              insertedCount++;
             }
-            return value;
-          });
-
-          const placeholders = this.dbType === 'postgresql' 
-            ? fields.map((_, i) => `$${i + 1}`).join(', ')
-            : fields.map(() => '?').join(', ');
-
-          const fieldNames = fields.map(f => `"${f}"`).join(', ');
-          const insertSQL = `INSERT INTO "${tableName}" (${fieldNames}) VALUES (${placeholders})`;
-
-          await this.executeSQL(insertSQL, processedValues);
-          insertedCount++;
+          } catch (error) {
+            if (syncMode && error.message.includes('UNIQUE constraint failed')) {
+              // Record already exists in sync mode - this is expected
+              skippedCount++;
+              console.log(`⏭️  Skipped duplicate record ${record.id} in sync mode`);
+            } else {
+              console.error(`❌ Error inserting record ${record.id}:`, error.message);
+              throw error;
+            }
+          }
         }
       }
 
-      console.log(`✅ Inserted ${insertedCount} records into table '${tableName}'`);
-      return insertedCount;
+      const totalProcessed = insertedCount + updatedCount + skippedCount;
+      const mode = syncMode ? 'sync' : 'import';
+      console.log(`✅ ${mode.charAt(0).toUpperCase() + mode.slice(1)} completed for table '${tableName}': ${insertedCount} inserted, ${updatedCount} updated, ${skippedCount} skipped (${totalProcessed}/${records.length} processed)`);
+      
+      return { insertedCount, updatedCount, skippedCount };
     } catch (error) {
       console.error(`❌ Failed to insert records into table '${tableName}':`, error.message);
       throw error;

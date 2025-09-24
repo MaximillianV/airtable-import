@@ -53,6 +53,7 @@ model ImportSession {
   totalTables Int              @default(0)
   totalRecords Int             @default(0)
   processedRecords Int         @default(0)
+  results     Json?            // Per-table results with processedRecords and skippedRecords
   errorMessage String?
   
   createdAt DateTime @default(now())
@@ -106,5 +107,6 @@ enum ImportStatus {
   RUNNING
   COMPLETED
   FAILED
+  PARTIAL_FAILED
   CANCELLED
 }

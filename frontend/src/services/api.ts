@@ -90,10 +90,13 @@ export const settingsAPI = {
 };
 
 export const importAPI = {
-  start: async (tableNames: string[], tables?: DiscoveredTable[]) => {
+  start: async (tableNames: string[], tables?: DiscoveredTable[], overwrite?: boolean) => {
     const payload: any = { tableNames };
     if (tables && tables.length > 0) {
       payload.tables = tables;
+    }
+    if (overwrite !== undefined) {
+      payload.overwrite = overwrite;
     }
     const response = await api.post('/import/start', payload);
     return response.data;

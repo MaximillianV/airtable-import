@@ -12,6 +12,7 @@ const Import: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [currentSession, setCurrentSession] = useState<ImportSession | null>(null);
   const [progress, setProgress] = useState<Record<string, ImportProgress>>({});
+  const [overwrite, setOverwrite] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -139,8 +140,8 @@ const Import: React.FC = () => {
       console.log(`Starting import for ${selectedTableObjects.length} tables:`, 
         selectedTableObjects.map(t => `${t.name} (${t.recordCount} records)`).join(', '));
 
-      // Send both formats for backward compatibility
-      const result = await importAPI.start(selectedTables, selectedTableObjects);
+      // Send both formats for backward compatibility, including overwrite flag
+      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite);
       setCurrentSession(result);
       
       // Connect to socket for real-time updates
@@ -278,6 +279,26 @@ const Import: React.FC = () => {
                   >
                     Deselect All
                   </button>
+                </div>
+                
+                <div style={styles.importOptions}>
+                  <label style={styles.optionLabel}>
+                    <input
+                      type="checkbox"
+                      checked={overwrite}
+                      onChange={(e) => setOverwrite(e.target.checked)}
+                      style={styles.optionCheckbox}
+                    />
+                    <div style={styles.optionDetails}>
+                      <span style={styles.optionTitle}>Overwrite existing tables</span>
+                      <span style={styles.optionDescription}>
+                        {overwrite 
+                          ? 'Drop and recreate tables, replacing all existing data'
+                          : 'Skip existing tables and sync new records only (recommended)'
+                        }
+                      </span>
+                    </div>
+                  </label>
                 </div>
                 
                 <div style={styles.tableList}>
@@ -645,6 +666,40 @@ const styles = {
     color: '#3b82f6',
     textDecoration: 'none',
     fontWeight: '500',
+  },
+  importOptions: {
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '16px',
+  },
+  optionLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    cursor: 'pointer',
+  },
+  optionCheckbox: {
+    width: '18px',
+    height: '18px',
+    marginTop: '2px',
+    cursor: 'pointer',
+  },
+  optionDetails: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  optionTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
+  },
+  optionDescription: {
+    fontSize: '12px',
+    color: '#6b7280',
+    lineHeight: '1.4',
   },
 };
 

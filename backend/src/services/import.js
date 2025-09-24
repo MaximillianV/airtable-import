@@ -43,7 +43,9 @@ class ImportService {
     }
   }
 
-  async importTable(tableName, sessionId) {
+  async importTable(tableName, sessionId, options = {}) {
+    const { overwrite = false } = options;
+    
     try {
       this.emitProgress(sessionId, {
         table: tableName,
@@ -88,26 +90,85 @@ class ImportService {
           message: 'No records found in table',
           recordsProcessed: 0
         });
-        return { recordsImported: 0, tableName };
+        return {
+          tableName: sanitizedTableName,
+          success: true,
+          mode: 'empty',
+          processedRecords: 0,
+          skippedRecords: 0,
+          totalRecords: 0,
+          recordsImported: 0, // Legacy compatibility
+          recordsSkipped: 0   // Legacy compatibility
+        };
       }
 
-      // Create table in target database using Airtable metadata
-      this.emitProgress(sessionId, {
-        table: tableName,
-        status: 'creating_table',
-        message: 'Creating database table from Airtable schema...'
-      });
-
-      // Get table schema from Airtable metadata API
-      const tableSchema = await this.airtableService.getTableSchema(tableName);
+      // Check if table already exists and handle based on overwrite flag
+      const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_]/g, '_');
+      const tableAlreadyExists = await this.importDatabaseService.tableExists(sanitizedTableName);
       
-      // Create table using metadata instead of inferring from records
-      const sanitizedTableName = await this.importDatabaseService.createTableFromAirtableMetadata(
-        tableName,
-        tableSchema
-      );
+      if (tableAlreadyExists && !overwrite) {
+        // Table exists and overwrite is false - sync mode
+        this.emitProgress(sessionId, {
+          table: tableName,
+          status: 'syncing',
+          message: 'Table already exists - syncing new records only...'
+        });
+        
+        console.log(`📊 Table '${tableName}' already exists, syncing new records (overwrite: false)`);
+        
+        // Skip table creation, go directly to record insertion with sync logic
+        const insertResult = await this.importDatabaseService.insertRecords(
+          sanitizedTableName,
+          records,
+          { syncMode: true } // This will skip duplicates
+        );
 
-      // Insert records
+        this.emitProgress(sessionId, {
+          table: tableName,
+          status: 'completed',
+          message: `Sync completed successfully`,
+          recordsProcessed: insertResult.insertedCount,
+          totalRecords: records.length,
+          skippedRecords: insertResult.skippedCount
+        });
+
+        return {
+          tableName: sanitizedTableName,
+          success: true,
+          mode: 'sync',
+          processedRecords: insertResult.insertedCount,
+          updatedRecords: insertResult.updatedCount || 0,
+          skippedRecords: insertResult.skippedCount,
+          totalRecords: records.length,
+          recordsImported: insertResult.insertedCount, // Legacy compatibility
+          recordsSkipped: insertResult.skippedCount    // Legacy compatibility
+        };
+      } else {
+        // Either table doesn't exist or overwrite is true - full import mode
+        this.emitProgress(sessionId, {
+          table: tableName,
+          status: 'creating_table',
+          message: tableAlreadyExists ? 
+            'Overwriting existing table with fresh schema...' : 
+            'Creating database table from Airtable schema...'
+        });
+
+        if (tableAlreadyExists && overwrite) {
+          console.log(`🗑️  Table '${tableName}' exists, dropping for fresh import (overwrite: true)`);
+          await this.importDatabaseService.dropTableIfExists(sanitizedTableName);
+        }
+
+        // Get table schema from Airtable metadata API
+        const tableSchema = await this.airtableService.getTableSchema(tableName);
+        
+        // Create table using metadata instead of inferring from records
+        await this.importDatabaseService.createTableFromAirtableMetadata(
+          tableName,
+          tableSchema
+        );
+      }
+
+      // Insert records for full import mode (overwrite or new table)
       this.emitProgress(sessionId, {
         table: tableName,
         status: 'inserting',
@@ -117,24 +178,28 @@ class ImportService {
 
       const insertResult = await this.importDatabaseService.insertRecords(
         sanitizedTableName,
-        records
+        records,
+        { syncMode: false } // Full import mode
       );
-
-      // insertResult is just the number of inserted records
-      const insertedCount = insertResult;
 
       this.emitProgress(sessionId, {
         table: tableName,
         status: 'completed',
         message: `Import completed successfully`,
-        recordsProcessed: insertedCount,
+        recordsProcessed: insertResult.insertedCount,
         totalRecords: records.length
       });
 
       return {
-        recordsImported: insertedCount,
         tableName: sanitizedTableName,
-        totalRecords: records.length
+        success: true,
+        mode: 'import',
+        processedRecords: insertResult.insertedCount,
+        updatedRecords: 0, // No updated records in full import mode
+        skippedRecords: 0, // No skipped records in full import mode
+        totalRecords: records.length,
+        recordsImported: insertResult.insertedCount, // Legacy compatibility
+        recordsSkipped: 0                            // Legacy compatibility
       };
 
     } catch (error) {
@@ -148,19 +213,26 @@ class ImportService {
     }
   }
 
-  async importMultipleTables(tableNames, sessionId) {
+  async importMultipleTables(tableNames, sessionId, options = {}) {
+    const { overwrite = false } = options;
     const results = [];
     
     for (const tableName of tableNames) {
       try {
-        const result = await this.importTable(tableName, sessionId);
-        results.push({ ...result, success: true });
+        const result = await this.importTable(tableName, sessionId, { overwrite });
+        results.push(result); // Result already includes success: true
       } catch (error) {
         results.push({
           tableName,
           success: false,
+          mode: 'error',
+          processedRecords: 0,
+          updatedRecords: 0,
+          skippedRecords: 0,
+          totalRecords: 0,
           error: error.message,
-          recordsImported: 0
+          recordsImported: 0, // Legacy compatibility
+          recordsSkipped: 0   // Legacy compatibility
         });
       }
     }
