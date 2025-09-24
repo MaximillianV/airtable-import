@@ -19,6 +19,17 @@
   box-sizing: border-box;
 }
 
+/* Session card hover effects */
+.session-link:hover .session-card {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #d1d5db;
+}
+
+.session-link:hover {
+  text-decoration: none;
+}
+
 body {
   margin: 0;
   padding: 0;

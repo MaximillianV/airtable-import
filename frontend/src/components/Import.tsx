@@ -25,7 +25,7 @@ const Import: React.FC = () => {
     loadSettings();
     
     // Setup socket listeners for real-time updates
-    const unsubscribe = socketService.onProgressUpdate((data: ImportProgress) => {
+    const unsubscribeProgress = socketService.onProgressUpdate((data: ImportProgress) => {
       setProgress(prev => ({
         ...prev,
         [data.table]: data
@@ -53,10 +53,67 @@ const Import: React.FC = () => {
       }
     });
 
+    // Setup session completion listener to get final results
+    const unsubscribeSessionComplete = socketService.onSessionComplete((sessionData: any) => {
+      console.log('Import component received session completion:', sessionData);
+      
+      // Update current session status
+      if (currentSession && sessionData.sessionId === currentSession.sessionId) {
+        setCurrentSession(prev => prev ? {
+          ...prev,
+          status: sessionData.status.toLowerCase() as ImportSession['status'],
+          endTime: sessionData.endTime
+        } : null);
+
+        // Update progress with final results from session completion
+        if (sessionData.results) {
+          const finalProgress: Record<string, ImportProgress> = {};
+          
+          // Convert session results to progress format
+          Object.entries(sessionData.results).forEach(([tableName, result]: [string, any]) => {
+            // Map both original table name and sanitized table name
+            const originalTableName = selectedTables.find(name => 
+              name.toLowerCase().replace(/[^a-z0-9]/g, '_') === tableName.toLowerCase()
+            ) || tableName;
+            
+            finalProgress[originalTableName] = {
+              table: originalTableName,
+              status: result.success ? 'completed' : 'error',
+              message: result.success 
+                ? `Completed: ${result.processedRecords}/${result.totalRecords} records`
+                : result.error || 'Import failed',
+              recordsProcessed: result.processedRecords || 0,
+              totalRecords: result.totalRecords || 0,
+              error: result.error
+            };
+          });
+          
+          // Update progress state with final results
+          setProgress(finalProgress);
+          console.log('Updated progress with final results:', finalProgress);
+        }
+
+        // Stop importing state
+        setImporting(false);
+        
+        // Send completion message to debug console
+        if (settings?.debugMode && showDebugConsole && (window as any).debugLog) {
+          const debugLog = (window as any).debugLog;
+          const level = sessionData.status === 'COMPLETED' ? 'success' : 'error';
+          debugLog(level, `Import session ${sessionData.status.toLowerCase()}: ${sessionData.successfulTables}/${sessionData.totalTables} tables successful`, {
+            sessionId: sessionData.sessionId,
+            processedRecords: sessionData.processedRecords,
+            errors: sessionData.errors
+          });
+        }
+      }
+    });
+
     return () => {
-      unsubscribe();
+      unsubscribeProgress();
+      unsubscribeSessionComplete();
     };
-  }, []);
+  }, [currentSession?.sessionId, selectedTables, settings?.debugMode, showDebugConsole]);
 
   // Auto-discover tables when settings are loaded successfully
   useEffect(() => {

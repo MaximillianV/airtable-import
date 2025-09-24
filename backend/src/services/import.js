@@ -1,5 +1,6 @@
 const AirtableService = require('./airtable');
 const ImportDatabaseService = require('./importDatabase');
+const redisSessionService = require('./redisSession');
 const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
 class ImportService {
@@ -38,36 +39,41 @@ class ImportService {
   }
 
   emitProgress(sessionId, data) {
+    // Create enhanced progress data
+    const progressData = {
+      sessionId,
+      table: data.table || 'Unknown',
+      status: data.status || 'unknown',
+      message: data.message || '',
+      recordsProcessed: data.recordsProcessed || 0,
+      totalRecords: data.totalRecords || 0,
+      progress: data.totalRecords > 0 ? Math.round((data.recordsProcessed || 0) / data.totalRecords * 100) : 0,
+      timestamp: Date.now(),
+      ...data // Include any additional data
+    };
+    
+    // Store progress in Redis for persistence and pub/sub
+    redisSessionService.storeProgress(sessionId, data.table, progressData).catch(error => {
+      console.warn('⚠️ Failed to store progress in Redis:', error.message);
+    });
+    
+    // Publish progress update via Redis pub/sub
+    redisSessionService.publishProgress(sessionId, progressData).catch(error => {
+      console.warn('⚠️ Failed to publish progress to Redis:', error.message);
+    });
+    
     // Emit to local callbacks for backward compatibility
     const callback = this.progressCallbacks.get(sessionId);
     if (callback) {
-      callback(data);
+      callback(progressData);
     }
     
     // Emit to Socket.IO for real-time updates in frontend
     if (global.socketIO) {
-      const progressData = {
-        sessionId,
-        table: data.table,
-        status: data.status,
-        message: data.message,
-        recordsProcessed: data.recordsProcessed || 0,
-        totalRecords: data.totalRecords || 0,
-        skippedRecords: data.skippedRecords || 0,
-        progress: data.totalRecords > 0 ? Math.round((data.recordsProcessed || 0) / data.totalRecords * 100) : 0,
-        timestamp: new Date().toISOString()
-      };
-      
       global.socketIO.to(`progress-${sessionId}`).emit('import-progress', progressData);
       
-      // Debug logging if enabled - send to frontend debug console
       if (global.debugMode) {
-        console.log(`🔄 Progress emitted for session ${sessionId}:`, progressData);
-        this.debugLog(sessionId, 'info', `${data.status.toUpperCase()}: ${data.message}`, {
-          table: data.table,
-          progress: progressData.progress + '%',
-          records: `${data.recordsProcessed || 0}/${data.totalRecords || 0}`
-        });
+        console.log(`📡 Emitted progress for session ${sessionId}:`, progressData);
       }
     }
   }
@@ -316,6 +322,21 @@ class ImportService {
       debugMode: global.debugMode
     });
     
+    // Store initial session data in Redis
+    const sessionData = {
+      sessionId,
+      status: 'running',
+      startTime: new Date().toISOString(),
+      tableNames,
+      totalTables: tableNames.length,
+      options: { overwrite },
+      results: []
+    };
+    
+    await redisSessionService.storeSession(sessionId, sessionData).catch(error => {
+      console.warn('⚠️ Failed to store session in Redis:', error.message);
+    });
+    
     // Send debug log to frontend if debug mode is enabled
     this.debugLog(sessionId, 'info', `Starting import of ${tableNames.length} tables`, {
       tables: tableNames,
@@ -397,6 +418,41 @@ class ImportService {
         });
       }
     }
+
+    // Calculate session completion data
+    const successfulTables = results.filter(r => r.success).length;
+    const failedTables = results.filter(r => !r.success).length;
+    const totalRecords = results.reduce((sum, r) => sum + (r.processedRecords || 0), 0);
+    
+    // Update session data with completion
+    const completionData = {
+      status: failedTables === 0 ? 'completed' : 'partial_failed',
+      endTime: new Date().toISOString(),
+      results,
+      summary: {
+        totalTables: tableNames.length,
+        successfulTables,
+        failedTables,
+        totalRecords
+      }
+    };
+    
+    // Update session in Redis
+    await redisSessionService.updateSession(sessionId, completionData).catch(error => {
+      console.warn('⚠️ Failed to update session in Redis:', error.message);
+    });
+    
+    // Publish session completion
+    await redisSessionService.publishSessionComplete(sessionId, completionData).catch(error => {
+      console.warn('⚠️ Failed to publish session completion:', error.message);
+    });
+    
+    console.log(`🏁 Import session ${sessionId} completed:`, {
+      status: completionData.status,
+      successfulTables,
+      failedTables,
+      totalRecords
+    });
 
     return results;
   }

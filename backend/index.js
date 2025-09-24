@@ -9,6 +9,11 @@ const authRoutes = require('./src/routes/auth');
 const { router: importRoutes, setupSocketIO } = require('./src/routes/import');
 const { router: settingsRoutes } = require('./src/routes/settings');
 
+// Initialize Redis services
+const redisService = require('./src/services/redis');
+const redisSessionService = require('./src/services/redisSession');
+const redisCacheService = require('./src/services/redisCache');
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -47,6 +52,48 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-server.listen(PORT, () => {
+// Initialize Redis connection on startup
+async function initializeRedis() {
+  try {
+    const redisEnabled = process.env.REDIS_ENABLED !== 'false';
+    
+    if (redisEnabled) {
+      console.log('🔄 Initializing Redis connection...');
+      const connected = await redisService.connect();
+      
+      if (connected) {
+        console.log('✅ Redis services initialized successfully');
+        
+        // Start periodic cleanup of expired sessions
+        const cleanupInterval = setInterval(async () => {
+          await redisSessionService.cleanupExpiredSessions();
+        }, 5 * 60 * 1000); // Every 5 minutes
+        
+        // Cleanup on exit
+        process.on('SIGTERM', () => {
+          clearInterval(cleanupInterval);
+          redisService.disconnect();
+        });
+        
+        process.on('SIGINT', () => {
+          clearInterval(cleanupInterval);
+          redisService.disconnect();
+        });
+      } else {
+        console.log('⚠️  Redis connection failed, using in-memory fallback');
+      }
+    } else {
+      console.log('ℹ️  Redis disabled, using in-memory storage');
+    }
+  } catch (error) {
+    console.error('❌ Redis initialization error:', error.message);
+    console.log('⚠️  Continuing with in-memory storage');
+  }
+}
+
+server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Initialize Redis after server starts
+  await initializeRedis();
 });

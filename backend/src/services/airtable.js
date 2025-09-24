@@ -1,5 +1,6 @@
 const Airtable = require('airtable');
 const fetch = require('node-fetch');
+const schemaCache = require('./schemaCache');
 
 class AirtableService {
   constructor() {
@@ -54,6 +55,13 @@ class AirtableService {
   async discoverTablesWithCounts() {
     if (!this.base) {
       throw new Error('Not connected to Airtable');
+    }
+
+    // Check cache first to avoid duplicate API calls
+    const cachedTables = schemaCache.getTablesDiscovery(this.baseId);
+    if (cachedTables) {
+      console.log(`📋 Using cached table discovery for base ${this.baseId} (${cachedTables.length} tables)`);
+      return cachedTables;
     }
 
     try {
@@ -130,6 +138,10 @@ class AirtableService {
       }
 
       console.log(`Successfully discovered ${tablesWithCounts.length} tables with record counts`);
+      
+      // Cache the results to avoid duplicate API calls
+      schemaCache.setTablesDiscovery(this.baseId, tablesWithCounts);
+      
       return tablesWithCounts;
     } catch (error) {
       console.error('Error discovering tables with counts:', error.message);
@@ -329,6 +341,13 @@ class AirtableService {
       throw new Error('Not connected to Airtable');
     }
 
+    // Check cache first to avoid duplicate API calls
+    const cachedSchema = schemaCache.getTableSchema(this.baseId, tableName);
+    if (cachedSchema) {
+      console.log(`📋 Using cached schema for table ${this.baseId}:${tableName} (${cachedSchema.fields?.length || 0} fields)`);
+      return cachedSchema;
+    }
+
     try {
       console.log(`🔍 Getting schema for table: ${tableName}`);
       
@@ -367,12 +386,17 @@ class AirtableService {
         });
       }
 
-      return {
+      const tableSchema = {
         id: tableInfo.id,
         name: tableInfo.name,
         description: tableInfo.description || null,
         fields: tableInfo.fields || []
       };
+
+      // Cache the schema to avoid duplicate API calls
+      schemaCache.setTableSchema(this.baseId, tableName, tableSchema);
+
+      return tableSchema;
     } catch (error) {
       console.error(`Error getting schema for table "${tableName}":`, error.message);
       throw error;

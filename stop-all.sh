@@ -65,6 +65,19 @@ echo "Cleaning up ports 3000 and 3001..."
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
 
+# Check if we should stop Redis (only if we started it)
+if [ -f "$LOGS_DIR/redis_started_by_app" ]; then
+    echo "Stopping Redis server that was started by this application..."
+    if redis-cli shutdown > /dev/null 2>&1; then
+        echo "✅ Redis stopped"
+    else
+        echo "⚠️  Redis may have already been stopped or was not running"
+    fi
+    rm -f "$LOGS_DIR/redis_started_by_app"
+else
+    echo "ℹ️  Redis left running (was already running or managed externally)"
+fi
+
 # Remove PID file
 rm -f "$PID_FILE"
 

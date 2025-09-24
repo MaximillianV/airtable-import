@@ -6,6 +6,7 @@ import Register from './components/Register';
 import AdminLayout from './components/AdminLayout';
 import Dashboard from './components/Dashboard';
 import Import from './components/Import';
+import SessionDetail from './components/SessionDetail';
 import AdminSettings from './components/admin/settings/AdminSettings';
 import Users from './components/admin/users/Users';
 import Profile from './components/admin/Profile';
@@ -39,6 +40,7 @@ function App() {
               
               {/* Import functionality */}
               <Route path="import" element={<Import />} />
+              <Route path="sessions/:sessionId" element={<SessionDetail />} />
               
               {/* Users management section */}
               <Route path="users" element={<Users />} />
