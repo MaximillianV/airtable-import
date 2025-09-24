@@ -1,0 +1,38 @@
+/* Admin Dashboard Responsive Styles */
+
+/* Sidebar responsive behavior */
+@media (min-width: 1024px) {
+  .sidebar {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Mobile overlay */
+@media (max-width: 1023px) {
+  .sidebar-overlay {
+    display: block;
+  }
+  
+  .sidebar-overlay.hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+/* Main content area responsive */
+@media (min-width: 1024px) {
+  .admin-main-content {
+    margin-left: 280px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .admin-main-content {
+    margin-left: 0;
+  }
+}

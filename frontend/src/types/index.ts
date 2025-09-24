@@ -50,15 +50,20 @@ export interface ImportSession {
   startTime: string;
   endTime?: string;
   tableNames: string[];
-  results?: ImportResult[];
+  results?: { [tableName: string]: ImportResult };
   error?: string;
 }
 
 export interface ImportResult {
   tableName: string;
   success: boolean;
-  recordsImported: number;
-  totalRecords?: number;
+  mode: 'import' | 'sync' | 'error';
+  processedRecords: number;
+  updatedRecords?: number;
+  skippedRecords: number;
+  totalRecords: number;
+  recordsImported?: number; // Legacy compatibility
+  recordsSkipped?: number; // Legacy compatibility
   error?: string;
 }
 

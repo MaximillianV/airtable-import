@@ -3,6 +3,7 @@ const { authenticateToken } = require('../middleware/auth');
 const ImportService = require('../services/import');
 const { getUserSettings } = require('./settings');
 const DatabaseService = require('../services/database');
+const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
 const router = express.Router();
 
@@ -23,6 +24,95 @@ async function initializeImportService() {
 
 // Initialize on startup
 initializeImportService();
+
+/**
+ * Preview schema mapping endpoint
+ * Fetches Airtable schema and shows naming conversion options
+ * Allows users to choose between different naming strategies before import
+ */
+router.get('/schema-preview', authenticateToken, async (req, res) => {
+  try {
+    // Get user settings for Airtable connection
+    const settings = await getUserSettings(req.user.userId);
+    
+    // Validate required Airtable settings
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for schema preview' 
+      });
+    }
+
+    // Initialize Airtable service
+    const AirtableService = require('../services/airtable');
+    const airtableService = new AirtableService();
+    airtableService.connect(settings.airtableApiKey, settings.airtableBaseId);
+    
+    // Get all tables from Airtable base with record counts
+    const tables = await airtableService.discoverTablesWithCounts();
+    
+    // Build schema preview with naming options
+    const schemaPreview = await Promise.all(
+      tables.map(async (table) => {
+        try {
+          // Get table schema (fields) - use table name since getTableSchema expects name, not ID
+          const tableSchema = await airtableService.getTableSchema(table.name);
+          
+          // Generate naming previews for table
+          const tableOriginal = table.name;
+          const tableSnakeCase = sanitizeTableName(tableOriginal, false); // preserve plural
+          const tableSingularSnakeCase = sanitizeTableName(tableOriginal, true); // force singular
+          
+          // Generate naming previews for all columns from the fields array
+          const columnPreviews = (tableSchema.fields || []).map(field => ({
+            original: field.name,
+            snakeCase: sanitizeColumnName(field.name),
+            singularSnakeCase: sanitizeColumnName(field.name), // columns don't need plural/singular conversion
+            type: field.type,
+            options: field.options || {}
+          }));
+          
+          return {
+            id: table.id,
+            name: {
+              original: tableOriginal,
+              snakeCase: tableSnakeCase,
+              singularSnakeCase: tableSingularSnakeCase
+            },
+            columns: columnPreviews,
+            recordCount: table.recordCount || 0
+          };
+        } catch (error) {
+          console.error(`Error fetching schema for table ${table.name}:`, error.message);
+          return {
+            id: table.id,
+            name: {
+              original: table.name,
+              snakeCase: sanitizeTableName(table.name, false),
+              singularSnakeCase: sanitizeTableName(table.name, true)
+            },
+            columns: [],
+            recordCount: table.recordCount || 0,
+            error: error.message
+          };
+        }
+      })
+    );
+
+    res.json({
+      success: true,
+      baseId: settings.airtableBaseId,
+      tables: schemaPreview,
+      totalTables: schemaPreview.length,
+      totalColumns: schemaPreview.reduce((sum, table) => sum + table.columns.length, 0)
+    });
+    
+  } catch (error) {
+    console.error('Schema preview error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch schema preview: ' + error.message 
+    });
+  }
+});
 
 /**
  * Start import process endpoint

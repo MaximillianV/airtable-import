@@ -54,41 +54,98 @@ const Dashboard: React.FC = () => {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>Airtable Import Dashboard</h1>
-        <div style={styles.headerActions}>
-          <span style={styles.userEmail}>Welcome, {user?.email}</span>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            Logout
-          </button>
-        </div>
-      </header>
+      {/* Page Header */}
+      <div style={styles.pageHeader}>
+        <h1 style={styles.pageTitle}>Dashboard</h1>
+        <p style={styles.pageDescription}>
+          Welcome to your Airtable Import system. Monitor your imports and manage your data.
+        </p>
+      </div>
 
       <div style={styles.content}>
         {!hasSettings ? (
           <div style={styles.setupCard}>
-            <h2>Get Started</h2>
-            <p>Before you can start importing from Airtable, you need to configure your settings.</p>
-            <Link to="/settings" style={styles.primaryButton}>
+            <div style={styles.setupIcon}>⚙️</div>
+            <h2 style={styles.setupTitle}>Get Started</h2>
+            <p style={styles.setupDescription}>
+              Before you can start importing from Airtable, you need to configure your connection settings.
+            </p>
+            <Link to="/admin/settings" style={styles.primaryButton}>
               Configure Settings
             </Link>
           </div>
         ) : (
           <div style={styles.mainContent}>
+            {/* Quick Stats */}
+            <div style={styles.statsGrid}>
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>📊</div>
+                <div style={styles.statContent}>
+                  <div style={styles.statValue}>{sessions.length}</div>
+                  <div style={styles.statLabel}>Total Sessions</div>
+                </div>
+              </div>
+              
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>✅</div>
+                <div style={styles.statContent}>
+                  <div style={styles.statValue}>
+                    {sessions.filter(s => s.status === 'completed').length}
+                  </div>
+                  <div style={styles.statLabel}>Successful Imports</div>
+                </div>
+              </div>
+              
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>🚀</div>
+                <div style={styles.statContent}>
+                  <div style={styles.statValue}>
+                    {sessions.reduce((total, session) => {
+                      if (!session.results) return total;
+                      // session.results is an object with table names as keys
+                      const tableResults = Object.values(session.results);
+                      return total + tableResults.reduce((sum: number, result: any) => 
+                        sum + (result.processedRecords || result.recordsImported || 0), 0
+                      );
+                    }, 0)}
+                  </div>
+                  <div style={styles.statLabel}>Records Imported</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Cards */}
             <div style={styles.actionCards}>
               <div style={styles.card}>
-                <h3>Start New Import</h3>
-                <p>Import tables from your Airtable base to PostgreSQL database.</p>
-                <Link to="/import" style={styles.primaryButton}>
+                <div style={styles.cardIcon}>📥</div>
+                <h3 style={styles.cardTitle}>Start New Import</h3>
+                <p style={styles.cardDescription}>
+                  Import tables from your Airtable base to PostgreSQL database.
+                </p>
+                <Link to="/admin/import" style={styles.primaryButton}>
                   Start Import
                 </Link>
               </div>
               
               <div style={styles.card}>
-                <h3>Settings</h3>
-                <p>Manage your Airtable and database connection settings.</p>
-                <Link to="/settings" style={styles.secondaryButton}>
+                <div style={styles.cardIcon}>⚙️</div>
+                <h3 style={styles.cardTitle}>Manage Settings</h3>
+                <p style={styles.cardDescription}>
+                  Configure your Airtable and database connections, view system status.
+                </p>
+                <Link to="/admin/settings" style={styles.secondaryButton}>
                   View Settings
+                </Link>
+              </div>
+              
+              <div style={styles.card}>
+                <div style={styles.cardIcon}>👥</div>
+                <h3 style={styles.cardTitle}>User Management</h3>
+                <p style={styles.cardDescription}>
+                  Manage users, roles, and permissions for your import system.
+                </p>
+                <Link to="/admin/users" style={styles.secondaryButton}>
+                  Manage Users
                 </Link>
               </div>
             </div>
@@ -118,7 +175,7 @@ const Dashboard: React.FC = () => {
                         )}
                         {session.results && (
                           <p>
-                            Results: {session.results.filter(r => r.success).length}/{session.results.length} successful
+                            Results: {Object.values(session.results).filter((r: any) => r.success).length}/{Object.values(session.results).length} successful
                           </p>
                         )}
                       </div>
@@ -149,9 +206,26 @@ const getStatusColor = (status: string): string => {
 
 const styles = {
   container: {
-    minHeight: '100vh',
     backgroundColor: '#f8fafc',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif',
+  },
+  
+  // Page header styles
+  pageHeader: {
+    marginBottom: '32px',
+  },
+  
+  pageTitle: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    margin: '0 0 8px 0',
+  },
+  
+  pageDescription: {
+    fontSize: '16px',
+    color: '#6b7280',
+    margin: 0,
   },
   loading: {
     display: 'flex',
@@ -213,6 +287,85 @@ const styles = {
     padding: '32px',
     textAlign: 'center' as const,
     border: '1px solid #e5e7eb',
+  },
+  
+  setupIcon: {
+    fontSize: '48px',
+    marginBottom: '16px',
+  },
+  
+  setupTitle: {
+    fontSize: '24px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '8px',
+  },
+  
+  setupDescription: {
+    fontSize: '16px',
+    color: '#6b7280',
+    marginBottom: '24px',
+    lineHeight: '1.5',
+  },
+  
+  // Stats grid styles
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '20px',
+    marginBottom: '32px',
+  },
+  
+  statCard: {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '20px',
+    border: '1px solid #e5e7eb',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  
+  statIcon: {
+    fontSize: '32px',
+  },
+  
+  statContent: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  
+  statValue: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    lineHeight: '1',
+  },
+  
+  statLabel: {
+    fontSize: '14px',
+    color: '#6b7280',
+    marginTop: '4px',
+  },
+  
+  // Card icon styles
+  cardIcon: {
+    fontSize: '32px',
+    marginBottom: '12px',
+  },
+  
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '8px',
+  },
+  
+  cardDescription: {
+    fontSize: '14px',
+    color: '#6b7280',
+    lineHeight: '1.5',
+    marginBottom: '16px',
   },
   mainContent: {
     display: 'flex',
