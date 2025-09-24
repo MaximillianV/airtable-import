@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { settingsAPI, importAPI } from '../services/api';
 import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
+import SchemaMappingWizard from './SchemaMappingWizard';
 
 const Import: React.FC = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -14,6 +15,8 @@ const Import: React.FC = () => {
   const [progress, setProgress] = useState<Record<string, ImportProgress>>({});
   const [overwrite, setOverwrite] = useState(false);
   const [error, setError] = useState('');
+  const [showSchemaMappingWizard, setShowSchemaMappingWizard] = useState(false);
+  const [mappingConfiguration, setMappingConfiguration] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -162,6 +165,67 @@ const Import: React.FC = () => {
     );
   };
 
+  /**
+   * Handles completion of schema mapping wizard.
+   * Stores the mapping configuration and proceeds with import.
+   */
+  const handleMappingComplete = (config: any) => {
+    console.log('Schema mapping completed:', config);
+    setMappingConfiguration(config);
+    setShowSchemaMappingWizard(false);
+    
+    // Now start the actual import with the configured mapping
+    startImportWithMapping(config);
+  };
+
+  /**
+   * Handles cancellation of schema mapping wizard.
+   * Returns to the table selection view.
+   */
+  const handleMappingCancel = () => {
+    setShowSchemaMappingWizard(false);
+    setMappingConfiguration(null);
+  };
+
+  /**
+   * Starts the import process with the configured schema mapping.
+   * This is called after the mapping wizard is completed.
+   */
+  const startImportWithMapping = async (config: any) => {
+    if (selectedTables.length === 0) {
+      setError('Please select at least one table to import');
+      return;
+    }
+
+    setImporting(true);
+    setError('');
+    setProgress({});
+
+    try {
+      // Prepare enhanced table data with metadata and mapping configuration
+      const selectedTableObjects = discoveredTables.filter(table => 
+        selectedTables.includes(table.name)
+      );
+
+      console.log(`Starting import for ${selectedTableObjects.length} tables with schema mapping:`, 
+        selectedTableObjects.map(t => `${t.name} (${t.recordCount} records)`).join(', '));
+
+      // TODO: Update the API call to include mapping configuration
+      // For now, start with existing API - we'll enhance this later
+      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite);
+      setCurrentSession(result);
+      
+      // Connect to socket for real-time updates
+      socketService.connect();
+      socketService.joinSession(result.sessionId);
+      
+    } catch (error: any) {
+      console.error('Import failed:', error);
+      setError(error.response?.data?.error || 'Failed to start import');
+      setImporting(false);
+    }
+  };
+
   const getProgressPercentage = (progress: ImportProgress): number => {
     if (progress.status === 'completed') return 100;
     if (progress.status === 'error') return 0;
@@ -208,7 +272,18 @@ const Import: React.FC = () => {
         </Link>
       </header>
 
-      <div style={styles.content}>
+      {/* Schema Mapping Wizard */}
+      {showSchemaMappingWizard && (
+        <SchemaMappingWizard
+          onMappingComplete={handleMappingComplete}
+          onCancel={handleMappingCancel}
+          initialConfig={mappingConfiguration}
+        />
+      )}
+
+      {/* Main Import Interface */}
+      {!showSchemaMappingWizard && (
+        <div style={styles.content}>
         {!importing ? (
           <div style={styles.setupSection}>
             <div style={styles.card}>
@@ -335,7 +410,7 @@ const Import: React.FC = () => {
                 </div>
                 
                 <button
-                  onClick={startImport}
+                  onClick={() => setShowSchemaMappingWizard(true)}
                   disabled={selectedTables.length === 0}
                   style={{
                     ...styles.primaryButton,
@@ -343,7 +418,7 @@ const Import: React.FC = () => {
                     cursor: selectedTables.length === 0 ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Start Import ({selectedTables.length} tables)
+                  Configure Schema & Import ({selectedTables.length} tables)
                 </button>
               </div>
             )}
@@ -423,7 +498,8 @@ const Import: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

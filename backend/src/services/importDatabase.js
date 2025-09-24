@@ -11,6 +11,7 @@ const sqlite3 = require('sqlite3').verbose();
 const { Client } = require('pg');
 const path = require('path');
 const fs = require('fs');
+const { sanitizeColumnName } = require('../utils/naming');
 
 class ImportDatabaseService {
   constructor() {
@@ -328,16 +329,21 @@ class ImportDatabaseService {
       // Drop table if it exists to ensure clean schema
       await this.dropTableIfExists(tableName);
 
-      // Convert Airtable field types to SQL column definitions
+      // Convert Airtable field types to SQL column definitions with sanitized names
       const columns = tableSchema.fields.map(field => ({
-        name: field.name,
+        name: sanitizeColumnName(field.name), // Apply snake_case conversion to column names
         type: this.mapAirtableTypeToSQL(field.type, field.options)
       }));
       
       // Log field mappings for debugging
       console.log(`🔍 Field type mappings for table "${tableName}":`);
       tableSchema.fields.forEach((field, index) => {
-        console.log(`  - "${field.name}": ${field.type} -> ${columns[index].type}`);
+        const sanitizedName = columns[index].name;
+        if (field.name !== sanitizedName) {
+          console.log(`  - "${field.name}" -> "${sanitizedName}": ${field.type} -> ${columns[index].type}`);
+        } else {
+          console.log(`  - "${field.name}": ${field.type} -> ${columns[index].type}`);
+        }
       });
       
       // Build CREATE TABLE SQL
@@ -568,10 +574,11 @@ class ImportDatabaseService {
         );
       }
       
-      console.log(`🔍 Field "${fieldName}": ${JSON.stringify(typeCount)} -> chosen: ${chosenType}`);
+      const sanitizedFieldName = sanitizeColumnName(fieldName);
+      console.log(`🔍 Field "${fieldName}" -> "${sanitizedFieldName}": ${JSON.stringify(typeCount)} -> chosen: ${chosenType}`);
       
       columns.push({
-        name: fieldName,
+        name: sanitizedFieldName,
         type: chosenType
       });
     });
@@ -702,8 +709,9 @@ class ImportDatabaseService {
       for (const record of records) {
         if (record.fields) {
           try {
-            // Build INSERT statement
-            const fields = Object.keys(record.fields);
+            // Build INSERT statement with sanitized column names
+            const originalFields = Object.keys(record.fields);
+            const fields = originalFields.map(fieldName => sanitizeColumnName(fieldName));
             const values = Object.values(record.fields);
             
             // Handle JSON values

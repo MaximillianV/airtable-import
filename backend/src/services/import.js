@@ -1,5 +1,6 @@
-const AirtableService = require('./airtable');
-const ImportDatabaseService = require('./importDatabase');
+const { AirtableService } = require('./airtable');
+const { ImportDatabaseService } = require('./importDatabase');
+const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
 
 class ImportService {
   constructor() {
@@ -103,7 +104,9 @@ class ImportService {
       }
 
       // Check if table already exists and handle based on overwrite flag
-      const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_]/g, '_');
+      // Using snake_case conversion while preserving plural/singular forms from Airtable
+      const sanitizedTableName = sanitizeTableName(tableName, false); // false = preserve plural/singular as-is
+      console.log(`🏷️  Table name conversion: "${tableName}" → "${sanitizedTableName}"`);
       const tableAlreadyExists = await this.importDatabaseService.tableExists(sanitizedTableName);
       
       if (tableAlreadyExists && !overwrite) {
