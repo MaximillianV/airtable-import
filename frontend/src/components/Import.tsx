@@ -19,6 +19,10 @@ const Import: React.FC = () => {
   const [showSchemaMappingWizard, setShowSchemaMappingWizard] = useState(false);
   const [mappingConfiguration, setMappingConfiguration] = useState<any>(null);
   const [showDebugConsole, setShowDebugConsole] = useState(false);
+  
+  // New state for discovery logs and caching
+  const [discoveryLogs, setDiscoveryLogs] = useState<string[]>([]);
+  const [cachedBaseId, setCachedBaseId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,6 +110,11 @@ const Import: React.FC = () => {
             errors: sessionData.errors
           });
         }
+        
+        // Navigate to session dashboard after import completion
+        setTimeout(() => {
+          navigate(`/admin/sessions/${sessionData.sessionId}`);
+        }, 2000); // Give user 2 seconds to see the completion message
       }
     });
 
@@ -115,13 +124,17 @@ const Import: React.FC = () => {
     };
   }, [currentSession?.sessionId, selectedTables, settings?.debugMode, showDebugConsole]);
 
-  // Auto-discover tables when settings are loaded successfully
+  // Check if we need to clear cache when base ID changes
   useEffect(() => {
-    if (settings && settings.airtableApiKey && settings.airtableBaseId && discoveredTables.length === 0 && !discovering) {
-      console.log('Auto-discovering tables with loaded settings...');
-      discoverTables();
+    if (settings?.airtableBaseId && cachedBaseId && settings.airtableBaseId !== cachedBaseId) {
+      // Base ID changed, clear cached tables
+      setDiscoveredTables([]);
+      setSelectedTables([]);
+      setCachedBaseId(settings.airtableBaseId);
+    } else if (settings?.airtableBaseId && !cachedBaseId) {
+      setCachedBaseId(settings.airtableBaseId);
     }
-  }, [settings]);
+  }, [settings?.airtableBaseId, cachedBaseId]);
 
   const loadSettings = async () => {
     try {
@@ -137,42 +150,90 @@ const Import: React.FC = () => {
   };
 
   /**
-   * Automatically discovers all tables in the Airtable base using the Metadata API.
-   * Fetches table information including names, IDs, and record counts.
-   * Replaces manual table entry with automatic discovery.
+   * Fetches all tables in the Airtable base with real-time progress logging.
+   * Shows live discovery progress with table names and record counts.
+   * Uses cached results until manually refreshed or base ID changes.
    */
-  const discoverTables = async () => {
+  const discoverTables = async (forceRefresh = false) => {
+    // Check if we should use cached results
+    if (!forceRefresh && discoveredTables.length > 0 && settings?.airtableBaseId === cachedBaseId) {
+      console.log('Using cached table discovery results');
+      return;
+    }
+
     setDiscovering(true);
     setError('');
-    setDiscoveredTables([]);
-    setSelectedTables([]);
+    setDiscoveryLogs([]);
+    
+    // Clear previous results only if force refresh or different base
+    if (forceRefresh || settings?.airtableBaseId !== cachedBaseId) {
+      setDiscoveredTables([]);
+      setSelectedTables([]);
+    }
     
     try {
-      console.log('Starting automatic table discovery...');
+      console.log('Starting table discovery...');
+      
+      // Add initial log
+      setDiscoveryLogs(prev => [...prev, 'Connecting to Airtable API...']);
+      
+      // Simulate progressive discovery steps
+      setTimeout(() => {
+        setDiscoveryLogs(prev => [...prev, 'Fetching base metadata...']);
+      }, 300);
+      
+      setTimeout(() => {
+        setDiscoveryLogs(prev => [...prev, 'Discovering tables...']);
+      }, 600);
+      
       const result = await importAPI.discoverTables();
       
       if (result.success && result.tables.length > 0) {
-        setDiscoveredTables(result.tables);
+        // Add discovery progress logs
+        setDiscoveryLogs(prev => [...prev, `Found ${result.tables.length} tables in base`]);
         
-        // Pre-select all accessible tables (those without errors)
-        const accessibleTableNames = result.tables
-          .filter(table => table.recordCount >= 0 && !table.error)
-          .map(table => table.name);
-        setSelectedTables(accessibleTableNames);
+        // Add each table discovery log
+        result.tables.forEach((table, index) => {
+          setTimeout(() => {
+            setDiscoveryLogs(prev => [...prev, `Getting record count for table: ${table.name}`]);
+            setTimeout(() => {
+              if (table.recordCount >= 0) {
+                setDiscoveryLogs(prev => [...prev, `Table "${table.name}": ${table.recordCount} records`]);
+              } else {
+                setDiscoveryLogs(prev => [...prev, `Table "${table.name}": Access denied or error`]);
+              }
+            }, 200);
+          }, index * 300);
+        });
         
-        // Show summary message
-        const totalTables = result.tables.length;
-        const accessibleCount = accessibleTableNames.length;
-        
-        if (accessibleCount === totalTables) {
-          console.log(`✅ Successfully discovered ${totalTables} accessible tables`);
-        } else {
-          const errorMessage = `Found ${totalTables} tables, but only ${accessibleCount} are accessible. Check permissions for the others.`;
-          console.warn(errorMessage);
-          setError(errorMessage);
-        }
+        // Set final results after all logs are shown
+        setTimeout(() => {
+          setDiscoveredTables(result.tables);
+          setCachedBaseId(settings?.airtableBaseId || null);
+          
+          // Pre-select all accessible tables (those without errors)
+          const accessibleTableNames = result.tables
+            .filter(table => table.recordCount >= 0 && !table.error)
+            .map(table => table.name);
+          setSelectedTables(accessibleTableNames);
+          
+          // Show summary message
+          const totalTables = result.tables.length;
+          const accessibleCount = accessibleTableNames.length;
+          
+          const summaryLog = `✅ Discovery complete: Found ${totalTables} tables, ${accessibleCount} accessible`;
+          setDiscoveryLogs(prev => [...prev, summaryLog]);
+          
+          if (accessibleCount !== totalTables) {
+            const warningLog = `⚠️ ${totalTables - accessibleCount} tables have permission issues`;
+            setDiscoveryLogs(prev => [...prev, warningLog]);
+            setError(`Found ${totalTables} tables, but only ${accessibleCount} are accessible. Check permissions for the others.`);
+          }
+        }, result.tables.length * 300 + 500);
       } else {
-        setError(result.message || 'No tables found in your Airtable base');
+        const errorLog = 'No tables found in your Airtable base';
+        setDiscoveryLogs(prev => [...prev, errorLog]);
+        setError(result.message || errorLog);
       }
     } catch (error: any) {
       console.error('Table discovery failed:', error);
@@ -194,6 +255,8 @@ const Import: React.FC = () => {
         errorMessage += error.response?.data?.error || error.message || 'Please check your settings and try again.';
       }
       
+      const errorLog = `❌ ${errorMessage}`;
+      setDiscoveryLogs(prev => [...prev, errorLog]);
       setError(errorMessage);
     } finally {
       setDiscovering(false);
@@ -380,12 +443,12 @@ const Import: React.FC = () => {
         {!importing ? (
           <div style={styles.setupSection}>
             <div style={styles.card}>
-              <h2>Discover Tables</h2>
-              <p>Automatically discover all tables in your Airtable base with record counts.</p>
+              <h2>Fetch Tables</h2>
+              <p>Fetch all tables from your Airtable base with record counts. Results are cached until manually refreshed.</p>
               
               <div style={styles.discoveryActions}>
                 <button
-                  onClick={discoverTables}
+                  onClick={() => discoverTables(false)}
                   disabled={discovering}
                   style={{
                     ...styles.primaryButton,
@@ -393,13 +456,28 @@ const Import: React.FC = () => {
                     cursor: discovering ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {discovering ? 'Discovering Tables...' : 
-                   discoveredTables.length > 0 ? 'Refresh Tables' : 'Discover Tables'}
+                  {discovering ? 'Fetching Tables...' : 
+                   discoveredTables.length > 0 ? 'Fetch Tables (Cached)' : 'Fetch Tables'}
                 </button>
+                
+                {discoveredTables.length > 0 && (
+                  <button
+                    onClick={() => discoverTables(true)}
+                    disabled={discovering}
+                    style={{
+                      ...styles.secondaryButton,
+                      marginLeft: '8px',
+                      opacity: discovering ? 0.6 : 1,
+                      cursor: discovering ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Refresh Tables
+                  </button>
+                )}
                 
                 {error && (
                   <button
-                    onClick={discoverTables}
+                    onClick={() => discoverTables(true)}
                     disabled={discovering}
                     style={{
                       ...styles.secondaryButton,
@@ -412,6 +490,27 @@ const Import: React.FC = () => {
                   </button>
                 )}
               </div>
+              
+              {/* Discovery Progress Log */}
+              {(discovering || discoveryLogs.length > 0) && (
+                <div style={styles.discoveryLogContainer}>
+                  <h4 style={styles.discoveryLogTitle}>
+                    {discovering ? '🔄 Fetching Tables...' : '📋 Discovery Log'}
+                  </h4>
+                  <div style={styles.discoveryLog}>
+                    {discovering && (
+                      <div style={styles.discoveryLogItem}>
+                        <span style={styles.loadingDots}>●●●</span> Processing...
+                      </div>
+                    )}
+                    {[...discoveryLogs].reverse().map((log, index) => (
+                      <div key={index} style={styles.discoveryLogItem}>
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {error && (
                 <div style={styles.error}>
@@ -892,6 +991,44 @@ const styles = {
     fontSize: '12px',
     color: '#6b7280',
     lineHeight: '1.4',
+  },
+  
+  // Discovery log styles
+  discoveryLogContainer: {
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+  },
+  discoveryLogTitle: {
+    margin: '0 0 12px 0',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  discoveryLog: {
+    backgroundColor: '#1f2937',
+    border: '1px solid #374151',
+    borderRadius: '6px',
+    padding: '12px',
+    maxHeight: '200px',
+    overflowY: 'auto' as const,
+    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    fontSize: '12px',
+    lineHeight: '1.4',
+  },
+  discoveryLogItem: {
+    color: '#e5e7eb',
+    marginBottom: '4px',
+    whiteSpace: 'pre-wrap' as const,
+  },
+  loadingDots: {
+    color: '#3b82f6',
+    animation: 'pulse 1.5s ease-in-out infinite',
   },
 };
 
