@@ -4,7 +4,7 @@ import { settingsAPI, importAPI } from '../services/api';
 import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
 import SchemaMappingWizard from './SchemaMappingWizard';
-import RelationshipWizard from './RelationshipWizard';
+import EnhancedRelationshipWizard from './EnhancedRelationshipWizard';
 import DebugConsole from './DebugConsole';
 
 const Import: React.FC = () => {
@@ -337,8 +337,12 @@ const Import: React.FC = () => {
    * Handles completion of relationship wizard.
    * Stores the relationship configuration and proceeds with import.
    */
-  const handleRelationshipComplete = (relationships: any, fieldConfig: any) => {
-    console.log('Relationship configuration completed:', { relationships, fieldConfig });
+  const handleRelationshipComplete = (config: any) => {
+    console.log('Enhanced relationship configuration completed:', config);
+    // Convert the Enhanced wizard config to the expected format
+    const relationships = config.relationships || [];
+    const fieldConfig = config.fieldConfiguration || {};
+    
     setRelationshipConfiguration({ relationships, fieldConfig });
     setShowRelationshipWizard(false);
     
@@ -473,8 +477,9 @@ const Import: React.FC = () => {
 
       {/* Relationship Wizard */}
       {showRelationshipWizard && (
-        <RelationshipWizard
-          onComplete={handleRelationshipComplete}
+        <EnhancedRelationshipWizard
+          tables={discoveredTables}
+          onConfigurationComplete={handleRelationshipComplete}
           onCancel={handleRelationshipCancel}
         />
       )}

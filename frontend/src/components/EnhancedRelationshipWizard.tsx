@@ -55,32 +55,64 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
   const [lowConfidencePatterns, setLowConfidencePatterns] = useState<DataPattern[]>([]);
   const [autoSuggestions, setAutoSuggestions] = useState<DataPattern[]>([]);
 
+  // Console logging state
+  const [analysisLogs, setAnalysisLogs] = useState<string[]>([]);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+
   /**
    * Step 1: Analyze data patterns using statistical analysis.
    * Performs intelligent relationship detection with confidence scoring.
    */
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setAnalysisLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+  };
+
   const analyzeDataPatterns = async () => {
     setLoading(true);
     setAnalysisProgress(0);
+    setAnalysisComplete(false);
     setError(null);
+    setAnalysisLogs([]);
 
     try {
-      console.log('Starting data-driven relationship analysis...');
-      
-      // Simulate progress updates during analysis
-      const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => Math.min(prev + 5, 90));
-      }, 200);
+      addLog('🚀 Starting hybrid relationship analysis...');
+      addLog('🔗 Connecting to Airtable API...');
+      setAnalysisProgress(10);
+
+      addLog('📋 Discovering tables with metadata...');
+      setAnalysisProgress(20);
+
+      addLog('🔍 Analyzing schema relationships...');
+      addLog('   • Detecting multipleRecordLinks fields');
+      addLog('   • Building table ID mappings');
+      setAnalysisProgress(40);
+
+      addLog('📊 Collecting sample data for statistical analysis...');
+      addLog('   • Sampling 50 records per table');
+      setAnalysisProgress(60);
+
+      addLog('🧮 Performing data pattern analysis...');
+      addLog('   • Analyzing array lengths and uniqueness');
+      addLog('   • Cross-table validation');
+      setAnalysisProgress(75);
 
       // Call the hybrid relationship analyzer (schema + sample data)
       const response = await importAPI.analyzeHybridRelationships();
       
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
+      addLog('✅ Hybrid analysis API call completed');
+      setAnalysisProgress(90);
 
       if (response.success) {
         const patterns = response.data.relationships || [];
         const recommendations = response.data.recommendations || {};
+        const analysis = response.data.analysis || {};
+
+        addLog(`📈 Results: ${patterns.length} total relationships detected`);
+        addLog(`   • High confidence (≥70%): ${analysis.highConfidenceCount || 0}`);
+        addLog(`   • Low confidence (<70%): ${analysis.lowConfidenceCount || 0}`);
+        addLog(`   • Data enhanced: ${analysis.dataEnhancedCount || 0}`);
+        addLog(`   • Schema only: ${analysis.schemaBasedCount - analysis.dataEnhancedCount || 0}`);
 
         setDataPatterns(patterns);
         setHighConfidencePatterns(recommendations.highConfidence || []);
@@ -102,14 +134,24 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
         });
 
         setUserConfirmations(initialConfirmations);
-        setCurrentStep(2);
+        setAnalysisProgress(100);
+        addLog('🎉 Analysis complete! Ready for user review.');
+        setAnalysisComplete(true);
+        
+        // Auto-advance to next step after a short delay
+        setTimeout(() => {
+          setCurrentStep(2);
+        }, 1500);
+
         console.log(`Analysis complete: ${patterns.length} relationships detected`);
       } else {
         throw new Error(response.error || 'Analysis failed');
       }
     } catch (error) {
       console.error('Data pattern analysis failed:', error);
-      setError(`Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      addLog(`❌ Analysis failed: ${errorMsg}`);
+      setError(`Analysis failed: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -243,10 +285,12 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
           {confirmation.relationshipType !== 'remove' && (
             <div style={styles.foreignKeyInfo}>
               <strong>Foreign Key Placement:</strong>
-              {pattern.suggestedForeignKey.junctionTable ? (
+              {pattern.suggestedForeignKey?.junctionTable ? (
                 <span> Junction table: {pattern.suggestedForeignKey.junctionTable.name}</span>
-              ) : (
+              ) : pattern.suggestedForeignKey ? (
                 <span> {pattern.suggestedForeignKey.foreignKeyTable}.{pattern.suggestedForeignKey.foreignKeyColumn} → {pattern.suggestedForeignKey.referencesTable}</span>
+              ) : (
+                <span> Auto-generated based on relationship type</span>
               )}
             </div>
           )}
@@ -490,9 +534,9 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
           </div>
         )}
 
-        {loading && (
+        {(loading || analysisLogs.length > 0) && (
           <div style={styles.progressContainer}>
-            <h3>Analyzing Data Patterns...</h3>
+            <h3>Hybrid Relationship Analysis</h3>
             <div style={styles.progressBar}>
               <div 
                 style={{
@@ -504,9 +548,29 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
             <div style={styles.progressText}>
               {analysisProgress}% Complete
             </div>
-            <div style={styles.progressDetails}>
-              Performing statistical analysis of linked record fields, calculating confidence scores, and generating relationship recommendations...
+            
+            {/* Console-like logging output */}
+            <div style={styles.consoleContainer}>
+              <div style={styles.consoleHeader}>Analysis Console</div>
+              <div style={styles.consoleLogs}>
+                {analysisLogs.map((log, index) => (
+                  <div key={index} style={styles.consoleLogLine}>
+                    {log}
+                  </div>
+                ))}
+                {loading && (
+                  <div style={styles.consoleLogLine}>
+                    <span style={styles.cursor}>▋</span>
+                  </div>
+                )}
+              </div>
             </div>
+            
+            {analysisComplete && (
+              <div style={styles.analysisCompleteMessage}>
+                ✅ Analysis complete! Proceeding to configuration...
+              </div>
+            )}
           </div>
         )}
 
@@ -887,6 +951,49 @@ const styles = {
   footer: {
     textAlign: 'center' as const,
     marginTop: '20px'
+  },
+  // Console-like logging styles
+  consoleContainer: {
+    marginTop: '20px',
+    border: '1px solid #374151',
+    borderRadius: '8px',
+    backgroundColor: '#1f2937',
+    overflow: 'hidden'
+  },
+  consoleHeader: {
+    backgroundColor: '#374151',
+    color: '#f9fafb',
+    padding: '8px 16px',
+    fontSize: '12px',
+    fontWeight: '500',
+    borderBottom: '1px solid #4b5563'
+  },
+  consoleLogs: {
+    padding: '12px 16px',
+    maxHeight: '300px',
+    overflowY: 'auto' as const,
+    fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+    fontSize: '12px',
+    lineHeight: '1.5'
+  },
+  consoleLogLine: {
+    color: '#e5e7eb',
+    marginBottom: '4px',
+    whiteSpace: 'pre-wrap' as const
+  },
+  cursor: {
+    color: '#10b981',
+    animation: 'blink 1s infinite'
+  },
+  analysisCompleteMessage: {
+    marginTop: '15px',
+    padding: '12px',
+    backgroundColor: '#dcfce7',
+    color: '#166534',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    textAlign: 'center' as const
   }
 };
 
