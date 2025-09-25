@@ -72,8 +72,8 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
         setAnalysisProgress(prev => Math.min(prev + 5, 90));
       }, 200);
 
-      // Call the data pattern analyzer
-      const response = await importAPI.analyzeDataPatterns(tables);
+      // Call the hybrid relationship analyzer (schema + sample data)
+      const response = await importAPI.analyzeHybridRelationships();
       
       clearInterval(progressInterval);
       setAnalysisProgress(100);

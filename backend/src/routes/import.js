@@ -1253,6 +1253,47 @@ router.post('/analyze-data-patterns', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Hybrid Relationship Analysis endpoint - combines schema + sample data analysis
+ * Provides higher confidence scoring than schema-only or data-only analysis
+ */
+router.post('/analyze-hybrid-relationships', authenticateToken, async (req, res) => {
+  try {
+    console.log('Starting hybrid relationship analysis (schema + sample data)...');
+    
+    // Get user settings for Airtable connection
+    const { getUserSettings } = require('./settings');
+    const settings = await getUserSettings(req.user.userId);
+    
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for hybrid analysis' 
+      });
+    }
+
+    // Initialize Hybrid Relationship Analyzer
+    const HybridRelationshipAnalyzer = require('../services/hybridRelationshipAnalyzer');
+    const analyzer = new HybridRelationshipAnalyzer(db);
+    
+    // Perform comprehensive hybrid analysis
+    const analysisResults = await analyzer.analyzeRelationshipsHybrid(settings);
+    
+    console.log(`Hybrid analysis complete: ${analysisResults.relationships.length} relationships, ${analysisResults.analysis.highConfidenceCount} high confidence`);
+    
+    res.json({
+      success: true,
+      data: analysisResults,
+      message: 'Hybrid relationship analysis completed successfully'
+    });
+    
+  } catch (error) {
+    console.error('Hybrid relationship analysis failed:', error.message);
+    res.status(500).json({ 
+      error: `Hybrid relationship analysis failed: ${error.message}` 
+    });
+  }
+});
+
+/**
  * Apply Schema Configuration endpoint - applies user-confirmed schema configuration
  * Takes user confirmations from Enhanced Relationship Wizard and applies to import
  */

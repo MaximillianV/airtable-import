@@ -164,6 +164,12 @@ export const importAPI = {
     const response = await api.post('/import/apply-schema-configuration', { config });
     return response.data;
   },
+
+  // Hybrid Relationship Analysis API - combines schema and sample data for higher confidence
+  analyzeHybridRelationships: async (): Promise<any> => {
+    const response = await api.post('/import/analyze-hybrid-relationships');
+    return response.data;
+  },
 };
 
 export default api;
