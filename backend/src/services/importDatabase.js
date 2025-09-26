@@ -84,7 +84,13 @@ class ImportDatabaseService {
    */
   async connect(databaseUrl, airtableBaseId) {
     try {
-      if (!databaseUrl || databaseUrl.trim() === '') {
+      // Validate parameters to prevent TypeError
+      if (typeof databaseUrl !== 'string' && databaseUrl !== null && databaseUrl !== undefined) {
+        console.error('❌ Invalid databaseUrl parameter type:', typeof databaseUrl, databaseUrl);
+        throw new Error(`Invalid databaseUrl parameter: expected string, null, or undefined, got ${typeof databaseUrl}`);
+      }
+
+      if (!databaseUrl || (typeof databaseUrl === 'string' && databaseUrl.trim() === '')) {
         // Default: Create local SQLite database with base ID
         return await this.connectSQLite(airtableBaseId);
       } else {
@@ -123,11 +129,12 @@ class ImportDatabaseService {
         } else {
           this.dbType = 'sqlite';
           this.connectionString = dbPath;
+          this.location = `Local SQLite: ${path.basename(dbPath)}`;
           console.log(`✅ Connected to SQLite database: ${dbPath}`);
           resolve({
             success: true,
             dbType: 'sqlite',
-            location: dbPath
+            location: this.location
           });
         }
       });
@@ -252,13 +259,14 @@ class ImportDatabaseService {
     
     this.dbType = 'postgresql';
     this.connectionString = modifiedConnectionString;
+    this.location = `${targetDatabaseName} (${url.host})`;
     
     console.log(`✅ Connected to PostgreSQL database: ${targetDatabaseName}`);
     
     return {
       success: true,
       dbType: 'postgresql',
-      location: `${targetDatabaseName} (${url.host})`
+      location: this.location
     };
   }
 
@@ -456,6 +464,8 @@ class ImportDatabaseService {
         return 'TEXT';
       
       case 'multipleRecordLinks':
+        return 'TEXT[]'; // Store as text array for relationship analysis
+      
       case 'lookup':
       case 'rollup':
       case 'formula':
@@ -487,6 +497,71 @@ class ImportDatabaseService {
       default:
         console.warn(`⚠️  Unknown Airtable field type: ${airtableType}, defaulting to TEXT`);
         return 'TEXT';
+    }
+  }
+
+  /**
+   * Check if a field should be stored as an array by querying the database schema
+   * 
+   * @param {string} tableName - Table name
+   * @param {string} fieldName - Field name
+   * @returns {boolean} True if field should be stored as array
+   */
+  isArrayField(tableName, fieldName) {
+    // For PostgreSQL arrays, we can check if the column type ends with []
+    if (this.dbType === 'postgresql') {
+      // This is a synchronous check, so we'll use a simple heuristic for now
+      // In a full implementation, we'd cache the schema information
+      const sanitizedFieldName = sanitizeColumnName(fieldName);
+      
+      // Check if this looks like a link field based on naming patterns
+      const arrayFieldPatterns = [
+        /link/i,
+        /multiple.*record/i,
+        /record.*link/i,
+        /relation/i
+      ];
+      
+      return arrayFieldPatterns.some(pattern => pattern.test(fieldName));
+    }
+    
+    return false;
+  }
+
+  /**
+   * Check if a column is of array type by querying the database schema
+   * 
+   * @param {string} tableName - Table name
+   * @param {String} columnName - Column name (sanitized)
+   * @returns {Promise<boolean>} True if column is array type
+   */
+  async isColumnArrayType(tableName, columnName) {
+    if (this.dbType !== 'postgresql') {
+      return false;
+    }
+
+    try {
+      const query = `
+        SELECT data_type, udt_name 
+        FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = $2
+      `;
+      
+      const result = await this.executeSQL(query, [tableName, columnName]);
+      const rows = Array.isArray(result) ? result : (result.rows || []);
+      
+      if (rows.length > 0) {
+        const row = rows[0];
+        // PostgreSQL array types have data_type = 'ARRAY'
+        // TEXT[] arrays specifically have udt_name = '_text'
+        return row.data_type === 'ARRAY' || row.udt_name === '_text';
+      }
+      
+      return false;
+    } catch (error) {
+      console.warn(`Warning: Could not check column type for ${tableName}.${columnName}:`, error.message);
+      // Fallback to heuristic
+      return this.isArrayField(tableName, columnName);
     }
   }
 
@@ -714,13 +789,28 @@ class ImportDatabaseService {
             const fields = originalFields.map(fieldName => sanitizeColumnName(fieldName));
             const values = Object.values(record.fields);
             
-            // Handle JSON values
-            const processedValues = values.map(value => {
-              if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+            // Handle JSON values and arrays for TEXT[] columns
+            const processedValues = await Promise.all(values.map(async (value, index) => {
+              if (Array.isArray(value)) {
+                // For PostgreSQL TEXT[] columns, we need to format arrays properly
+                if (this.dbType === 'postgresql') {
+                  // Check if this field should be stored as TEXT[] by querying schema
+                  const originalFieldName = originalFields[index];
+                  const sanitizedFieldName = sanitizeColumnName(originalFieldName);
+                  const shouldBeArray = await this.isColumnArrayType(tableName, sanitizedFieldName);
+                  
+                  if (shouldBeArray) {
+                    // Return JavaScript array for PostgreSQL driver to handle properly
+                    return value.map(item => String(item || ''));
+                  }
+                }
+                // For non-array fields or SQLite, stringify as JSON
+                return JSON.stringify(value);
+              } else if (typeof value === 'object' && value !== null) {
                 return JSON.stringify(value);
               }
               return value;
-            });
+            }));
 
             let insertSQL;
             let queryParams;

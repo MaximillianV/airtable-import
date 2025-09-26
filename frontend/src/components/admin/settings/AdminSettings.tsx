@@ -547,7 +547,7 @@ const AdminSettings: React.FC = () => {
                     </td>
                     <td style={styles.tableCell}>
                       {session.results ? Object.values(session.results).reduce((total: number, result: any) => 
-                        total + (result.processedRecords || result.recordsImported || 0), 0) : 0}
+                        total + (result?.processedRecords || result?.recordsImported || 0), 0) : 0}
                     </td>
                     <td style={styles.tableCell}>
                       {new Date(session.startTime).toLocaleString()}
