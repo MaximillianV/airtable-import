@@ -2,9 +2,30 @@
 
 ## Project Overview
 
-This is a full-stack TypeScript/JavaScript application that imports Airtable bases into PostgreSQL databases. The application features automatic table creation, real-time progress tracking, and a modern React frontend.
+This is a full-stack TypeScript/JavaScript application that imports Airtable bases into PostgreSQL databases. The application features two import systems: the original working system and the new **V2 Type-Aware Import System** with 3-phase workflow, automatic table creation, real-time progress tracking, and a modern React frontend.
 
-**Key Purpose**: Provide a seamless way to migrate Airtable data to PostgreSQL with automatic schema detection and creation.
+**Key Purpose**: Provide a seamless way to migrate Airtable data to PostgreSQL with automatic schema detection, type-aware field mapping, and relationship analysis.
+
+## V2 Import System Architecture (CURRENT FOCUS)
+
+The V2 system extends the proven original ImportService with enhanced type mapping and 3-phase workflow:
+
+### Phase 1: Schema Creation (`V2ImportService.phase1CreateSchema`)
+- **Purpose**: Create PostgreSQL tables with proper field type mapping
+- **Key Components**: FieldMapperFactory, field-specific mappers (TextFieldMapper, LinkFieldMapper, etc.)
+- **Database Operations**: Uses enhanced `createTableWithTypeMapping()` with `ImportDatabaseService`
+- **Critical Pattern**: PostgreSQL TEXT[] arrays for `multipleRecordLinks` fields (NOT JSON strings)
+
+### Phase 2: Data Import (`V2ImportService.phase2ImportData`) 
+- **Purpose**: Import Airtable data with type transformations
+- **Key Pattern**: Reuses proven `importTable()` logic from original ImportService
+- **Array Handling**: JavaScript arrays for TEXT[] columns, JSON for JSONB columns
+- **Progress Tracking**: Real-time Socket.IO updates with session metadata
+
+### Phase 3: Relationship Analysis (Ready for testing)
+- **Purpose**: Analyze imported data for relationship patterns
+- **Components**: RelationshipAnalyzer service for link field analysis
+- **Output**: Relationship proposals with confidence scores for manual approval
 
 ## Architecture & Technology Stack
 
@@ -14,12 +35,20 @@ This is a full-stack TypeScript/JavaScript application that imports Airtable bas
 - **Authentication**: JWT tokens with bcrypt password hashing
 - **Real-time**: Socket.IO for progress updates during imports
 - **External APIs**: Airtable API integration
+- **Import Services**: 
+  - Original `ImportService` (proven, working)
+  - **V2ImportService** (extends ImportService with type-aware 3-phase workflow)
+  - **FieldMapperFactory** (routes field types to specialized mappers)
+  - **ImportDatabaseService** (enhanced with PostgreSQL TEXT[] array handling)
 - **Testing**: Jest with SQLite in-memory database
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 19+ with TypeScript 4.9+
 - **Routing**: React Router v6 with protected routes
 - **State Management**: React Context API for authentication
+- **Import Components**:
+  - `Import.tsx` (original working import interface)
+  - **`V2Import.tsx`** (3-phase workflow with table selection, progress tracking)
 - **Styling**: Inline styles with consistent design system
 - **Real-time**: Socket.IO client for progress updates
 - **HTTP Client**: Axios for API calls
@@ -30,6 +59,10 @@ This is a full-stack TypeScript/JavaScript application that imports Airtable bas
 - **Testing**: Jest (backend) + React Testing Library (frontend)
 - **CI/CD**: GitHub Actions with PostgreSQL service
 - **Environment**: .env files for configuration
+- **Enhanced Monitoring**:
+  - `debug-v2.sh` (comprehensive V2 import monitoring and troubleshooting)
+  - `view-logs.sh` (structured log viewing with real-time tailing)
+  - Live process monitoring and API testing capabilities
 
 ## Project Structure
 
@@ -491,6 +524,87 @@ const Component: React.FC<ComponentProps> = ({ title, onAction }) => {
 };
 ```
 
+### V2 Import Component Pattern (CRITICAL)
+```typescript
+/**
+ * V2Import.tsx - 3-phase import workflow with progress tracking
+ * Handles table selection, schema creation, data import, and relationship analysis
+ */
+interface ImportSession {
+  sessionId: string;
+  phase: 'schema-created' | 'data-imported' | 'relationships-analyzed' | 'completed';
+  tablesProcessed?: number;
+  tablesCreated?: number;  
+  tablesImported?: number;
+  totalRecords?: number;
+  results?: ImportResult[];
+}
+
+const V2Import: React.FC = () => {
+  // Phase management state
+  const [phase, setPhase] = useState<'select' | 'phase1' | 'phase2' | 'phase3' | 'completed'>('select');
+  const [currentSession, setCurrentSession] = useState<ImportSession | null>(null);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  
+  // Progress tracking with real-time Socket.IO updates
+  const [progress, setProgress] = useState<Record<string, ImportProgress>>({});
+  
+  // Phase 1: Schema creation with table selection
+  const startPhase1 = async () => {
+    try {
+      setPhase('phase1');
+      const response = await v2ImportAPI.phase1CreateSchema({
+        selectedTables: selectedTables.length > 0 ? selectedTables : null
+      });
+      
+      if (response.success) {
+        setCurrentSession({
+          sessionId: response.sessionId,
+          phase: 'schema-created',
+          tablesProcessed: response.tablesProcessed,
+          tablesCreated: response.tablesCreated
+        });
+      }
+    } catch (error) {
+      console.error('Phase 1 failed:', error);
+    }
+  };
+  
+  // Phase 2: Data import using existing proven logic
+  const startPhase2 = async () => {
+    if (!currentSession) return;
+    
+    try {
+      setPhase('phase2');
+      const response = await v2ImportAPI.phase2ImportData(currentSession.sessionId);
+      
+      if (response.success) {
+        setCurrentSession(prev => ({
+          ...prev!,
+          phase: 'data-imported',
+          tablesImported: response.tablesImported,
+          totalRecords: response.totalRecords
+        }));
+      }
+    } catch (error) {
+      console.error('Phase 2 failed:', error);
+    }
+  };
+};
+
+// Socket.IO progress tracking pattern
+useEffect(() => {
+  const unsubscribe = socketService.onProgressUpdate((data: ImportProgress) => {
+    setProgress(prev => ({
+      ...prev,
+      [data.table]: data
+    }));
+  });
+  
+  return unsubscribe;
+}, []);
+```
+
 ### Service Layer Pattern
 ```javascript
 class ServiceClass {
@@ -514,6 +628,78 @@ class ServiceClass {
     
     // Implementation
     return result;
+  }
+}
+```
+
+### V2 Field Mapping Pattern (CRITICAL)
+```javascript
+/**
+ * FieldMapperFactory - Central coordinator for type-aware field mapping
+ * Routes Airtable field types to specialized mappers for PostgreSQL conversion
+ */
+class FieldMapperFactory {
+  constructor() {
+    // Initialize specialized mappers for each Airtable field type
+    this.mappers = [
+      new TextFieldMapper(),     // singleLineText, multilineText, richText
+      new NumberFieldMapper(),   // number, percent, currency
+      new DateFieldMapper(),     // date, dateTime, createdTime, lastModifiedTime
+      new LinkFieldMapper(),     // multipleRecordLinks (PostgreSQL TEXT[] arrays)
+      new ComputedFieldMapper(), // formula, rollup, count, lookup
+      new SelectionFieldMapper() // singleSelect, multipleSelect
+    ];
+  }
+
+  // Map Airtable field to PostgreSQL column with proper type conversion
+  mapField(field, tableName) {
+    const mapper = this.getMapper(field.type);
+    if (!mapper) {
+      console.warn(`No mapper for field type: ${field.type}, using TEXT fallback`);
+      return this.createFallbackColumn(field);
+    }
+    
+    // Critical: Add metadata for array detection and proper data formatting
+    const columnDef = mapper.mapToPostgreSQLColumn({ ...field, tableName });
+    columnDef.mappedBy = mapper.fieldType;
+    columnDef.airtableFieldType = field.type;
+    return columnDef;
+  }
+}
+```
+
+### Database Service Array Handling Pattern (ESSENTIAL)
+```javascript
+/**
+ * ImportDatabaseService - Enhanced with PostgreSQL array handling
+ * CRITICAL: Proper handling of TEXT[] columns vs JSONB columns
+ */
+class ImportDatabaseService {
+  // Detect if column expects PostgreSQL array format
+  isColumnArrayType(columnName, tableSchema) {
+    // Check if this is a multipleRecordLinks field mapped to TEXT[]
+    return tableSchema.some(col => 
+      col.name === columnName && 
+      col.type === 'TEXT[]' &&
+      col.airtableFieldType === 'multipleRecordLinks'
+    );
+  }
+
+  // Format data for insertion with proper array handling
+  formatDataForInsertion(rowData, tableSchema) {
+    const formattedData = {};
+    
+    for (const [columnName, value] of Object.entries(rowData)) {
+      if (this.isColumnArrayType(columnName, tableSchema)) {
+        // CRITICAL: Use JavaScript arrays for TEXT[] columns
+        formattedData[columnName] = Array.isArray(value) ? value : [value];
+      } else {
+        // Standard data formatting for other column types
+        formattedData[columnName] = value;
+      }
+    }
+    
+    return formattedData;
   }
 }
 ```
@@ -580,9 +766,23 @@ class ServiceClass {
 
 ## Troubleshooting Common Issues
 
+### V2 Import System Debugging (CRITICAL)
+- **Monitoring Script**: Use `./debug-v2.sh` for comprehensive real-time monitoring
+- **Array Handling**: PostgreSQL TEXT[] fields require JavaScript arrays (NOT JSON strings)
+- **Common Error**: "malformed array literal" - indicates JSON string passed to TEXT[] column
+- **Phase Workflow**: Must complete Phase 1 (schema) before Phase 2 (data) before Phase 3 (relationships)
+- **Log Analysis**: Use `./view-logs.sh v2-debug` for V2-specific troubleshooting
+
+### PostgreSQL Array Handling (CRITICAL)
+- **multipleRecordLinks Fields**: MUST use PostgreSQL TEXT[] arrays
+- **Data Format**: JavaScript arrays `['id1', 'id2']` NOT JSON strings `"['id1', 'id2']"`
+- **ImportDatabaseService**: Enhanced with `isColumnArrayType()` for proper array detection
+- **Testing**: Use `debug-v2.sh` to monitor array data insertion in real-time
+
 ### Port Conflicts
 - **Solution**: Use startup scripts that automatically clean ports
 - **Manual**: `lsof -ti:3001 | xargs kill -9 || true`
+- **Enhanced**: `./debug-v2.sh` includes automatic port management
 
 ### JWT Errors
 - **Solution**: Ensure JWT_SECRET is set in environment
@@ -591,10 +791,56 @@ class ServiceClass {
 ### Database Connection
 - **Solution**: Verify DATABASE_URL and PostgreSQL service status
 - **Testing**: Use SQLite for unit tests to avoid connection issues
+- **V2 Monitoring**: `./debug-v2.sh` provides database connection health checks
 
 ### Build Failures
 - **Solution**: Clear node_modules and package-lock.json, reinstall
 - **Dependencies**: Use exact versions in package-lock.json
+
+## Enhanced Debugging Workflow
+
+### Real-time V2 Import Monitoring
+```bash
+# Start comprehensive V2 import monitoring
+./debug-v2.sh
+
+# View structured logs with live tailing
+./view-logs.sh live
+
+# Debug specific V2 import issues
+./view-logs.sh v2-debug
+
+# Test API endpoints and responses
+./view-logs.sh api-test
+```
+
+### Critical Code Patterns for V2 System
+
+#### Array Handling Pattern (ESSENTIAL)
+```javascript
+// ✅ CORRECT: JavaScript arrays for PostgreSQL TEXT[] columns
+const linkFieldValues = ['recABC123', 'recDEF456']; // JavaScript array
+await query('INSERT INTO table (link_field) VALUES ($1)', [linkFieldValues]);
+
+// ❌ WRONG: JSON strings cause "malformed array literal" errors
+const linkFieldValues = "['recABC123', 'recDEF456']"; // JSON string - WILL FAIL
+```
+
+#### V2ImportService Usage Pattern
+```javascript
+// Phase 1: Create schema with type-aware mapping
+const phase1Result = await v2Service.phase1CreateSchema(apiKey, baseId, dbUrl, sessionId, selectedTables);
+
+// Phase 2: Import data (only after Phase 1 success)
+if (phase1Result.success) {
+  const phase2Result = await v2Service.phase2ImportData(sessionId);
+}
+
+// Phase 3: Analyze relationships (only after Phase 2 success)
+if (phase2Result.success) {
+  const phase3Result = await v2Service.phase3AnalyzeRelationships(sessionId);
+}
+```
 
 ## When Writing Code
 
