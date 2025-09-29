@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { settingsAPI, importAPI } from '../services/api';
+import { importAPI } from '../services/api';
 import { ImportSession } from '../types';
 import socketService from '../services/socket';
 import RedisMonitor from './RedisMonitor';
@@ -9,7 +9,6 @@ import RedisMonitor from './RedisMonitor';
 const Dashboard: React.FC = () => {
   const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasSettings, setHasSettings] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -52,10 +51,6 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Check if user has configured settings
-      const settings = await settingsAPI.get();
-      setHasSettings(!!(settings.airtableApiKey && settings.airtableBaseId && settings.databaseUrl));
-      
       // Load import sessions
       try {
         const sessionsData = await importAPI.getSessions();
@@ -96,25 +91,13 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div style={styles.content}>
-        {!hasSettings ? (
-          <div style={styles.setupCard}>
-            <div style={styles.setupIcon}>⚙️</div>
-            <h2 style={styles.setupTitle}>Get Started</h2>
-            <p style={styles.setupDescription}>
-              Before you can start importing from Airtable, you need to configure your connection settings.
-            </p>
-            <Link to="/admin/settings" style={styles.primaryButton}>
-              Configure Settings
-            </Link>
-          </div>
-        ) : (
-          <div style={styles.mainContent}>
+        <div style={styles.mainContent}>
             {/* Quick Stats */}
             <div style={styles.statsGrid}>
               <div style={styles.statCard}>
                 <div style={styles.statIcon}>📊</div>
                 <div style={styles.statContent}>
-                  <div style={styles.statValue}>{sessions.length}</div>
+                  <div style={styles.statValue}>{(sessions || []).length}</div>
                   <div style={styles.statLabel}>Total Sessions</div>
                 </div>
               </div>
@@ -123,7 +106,7 @@ const Dashboard: React.FC = () => {
                 <div style={styles.statIcon}>✅</div>
                 <div style={styles.statContent}>
                   <div style={styles.statValue}>
-                    {sessions.filter(s => s.status === 'completed').length}
+                    {(sessions || []).filter(s => s?.status === 'completed').length}
                   </div>
                   <div style={styles.statLabel}>Successful Imports</div>
                 </div>
@@ -133,12 +116,12 @@ const Dashboard: React.FC = () => {
                 <div style={styles.statIcon}>🚀</div>
                 <div style={styles.statContent}>
                   <div style={styles.statValue}>
-                    {sessions.reduce((total, session) => {
-                      if (!session.results) return total;
+                    {(sessions || []).reduce((total, session) => {
+                      if (!session?.results) return total;
                       // session.results is an object with table names as keys
-                      const tableResults = Object.values(session.results);
+                      const tableResults = Object.values(session.results).filter(result => result != null);
                       return total + tableResults.reduce((sum: number, result: any) => 
-                        sum + (result.processedRecords || result.recordsImported || 0), 0
+                        sum + (result?.processedRecords || result?.recordsImported || 0), 0
                       );
                     }, 0)}
                   </div>
@@ -159,15 +142,26 @@ const Dashboard: React.FC = () => {
                   Start Import
                 </Link>
               </div>
+
+              <div style={styles.card}>
+                <div style={styles.cardIcon}>🚀</div>
+                <h3 style={styles.cardTitle}>V2 Type-Aware Import</h3>
+                <p style={styles.cardDescription}>
+                  Enhanced import with proper field type mapping and relationship analysis.
+                </p>
+                <Link to="/admin/v2-import" style={{...styles.primaryButton, backgroundColor: '#059669'}}>
+                  Try V2 Import
+                </Link>
+              </div>
               
               <div style={styles.card}>
                 <div style={styles.cardIcon}>⚙️</div>
-                <h3 style={styles.cardTitle}>Manage Settings</h3>
+                <h3 style={styles.cardTitle}>System Configuration</h3>
                 <p style={styles.cardDescription}>
-                  Configure your Airtable and database connections, view system status.
+                  View system configuration status. Settings are managed via environment variables (.env file).
                 </p>
                 <Link to="/admin/settings" style={styles.secondaryButton}>
-                  View Settings
+                  View Configuration
                 </Link>
               </div>
               
@@ -199,36 +193,36 @@ const Dashboard: React.FC = () => {
 
             <div style={styles.sessionsSection}>
               <h2>Recent Import Sessions</h2>
-              {sessions.length === 0 ? (
+              {(sessions || []).length === 0 ? (
                 <p style={styles.noSessions}>No import sessions yet. Start your first import!</p>
               ) : (
                 <div style={styles.sessionsList}>
-                  {sessions.slice(0, 5).map((session) => (
+                  {(sessions || []).slice(0, 5).filter(session => session != null).map((session) => (
                     <Link 
-                      key={session.sessionId} 
-                      to={`/admin/sessions/${session.sessionId}`}
+                      key={session?.sessionId || Math.random()} 
+                      to={`/admin/sessions/${session?.sessionId || ''}`}
                       style={styles.sessionLink}
                       className="session-link"
                     >
                       <div style={styles.sessionCard} className="session-card">
                         <div style={styles.sessionHeader}>
-                          <span style={styles.sessionId}>Session: {session.sessionId.slice(-8)}</span>
+                          <span style={styles.sessionId}>Session: {session?.sessionId?.slice(-8) || 'Unknown'}</span>
                           <span style={{
                             ...styles.sessionStatus,
-                            color: getStatusColor(session.status)
+                            color: getStatusColor(session?.status || 'unknown')
                           }}>
-                            {session.status.toUpperCase()}
+                            {(session?.status || 'unknown').toUpperCase()}
                           </span>
                         </div>
                         <div style={styles.sessionDetails}>
-                          <p>Tables: {session.tableNames.join(', ')}</p>
-                          <p>Started: {new Date(session.startTime).toLocaleString()}</p>
-                          {session.endTime && (
+                          <p>Tables: {(session?.tableNames || []).join(', ')}</p>
+                          <p>Started: {session?.startTime ? new Date(session.startTime).toLocaleString() : 'Unknown'}</p>
+                          {session?.endTime && (
                             <p>Completed: {new Date(session.endTime).toLocaleString()}</p>
                           )}
                           {session.results && (
                             <p>
-                              Results: {Object.values(session.results).filter((r: any) => r.success).length}/{Object.values(session.results).length} successful
+                              Results: {Object.values(session.results).filter((r: any) => r?.success).length}/{Object.values(session.results).length} successful
                             </p>
                           )}
                         </div>
@@ -238,8 +232,7 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

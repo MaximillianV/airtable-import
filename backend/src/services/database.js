@@ -254,17 +254,7 @@ class DatabaseService {
     return await this.prisma.findUserById(userId);
   }
 
-  // ==========================================
-  // SETTINGS MANAGEMENT (Forward to Prisma)
-  // ==========================================
-
-  async getSettings(userId) {
-    return await this.prisma.getSettings(userId);
-  }
-
-  async saveSettings(userId, settingsData) {
-    return await this.prisma.saveSettings(userId, settingsData);
-  }
+  // Settings removed - configuration moved to environment variables
 
   // ==========================================
   // IMPORT SESSION MANAGEMENT (Forward to Prisma)

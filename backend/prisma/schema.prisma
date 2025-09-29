@@ -1,5 +1,6 @@
-// Prisma schema for Airtable Import Application
-// Manages users, import sessions, and dynamic imported data
+// Prisma schema for Airtable Import Application - DUAL SCHEMA SYSTEM
+// Uses 'app' schema for application management and 'data' schema for imported data
+// Both schemas exist in the same DigitalOcean PostgreSQL database
 
 generator client {
   provider = "prisma-client-js"
@@ -7,10 +8,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // DigitalOcean database with app and data schemas
+  schemas  = ["app", "data"]
 }
 
-// User management
+// User management - stored in 'app' schema
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -20,10 +22,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  settings       Settings?
   importSessions ImportSession[]
 
   @@map("users")
+  @@schema("app")
 }
 
 //User authentication and configuration database models
@@ -33,25 +35,13 @@ enum UserRole {
   USER      // Regular user with basic import permissions
   ADMIN     // Admin user with settings management  
   SUPERADMIN // Superadmin with all system permissions
-}
-model Settings {
-  id              Int     @id @default(autoincrement())
-  userId          Int     @unique
-  airtableApiKey  String? // Encrypted
-  airtableBaseId  String?
-  databaseUrl     String?
-  debugMode       Boolean @default(false) // Debug mode for verbose logging
   
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("settings")
+  @@schema("app")
 }
 
-// Import session tracking
+// Settings removed - Airtable configuration moved to environment variables
+
+// Import session tracking - stored in 'app' schema
 model ImportSession {
   id          String            @id @default(cuid())
   userId      Int
@@ -73,9 +63,10 @@ model ImportSession {
   importedTables ImportedTable[]
 
   @@map("import_sessions")
+  @@schema("app")
 }
 
-// Track imported tables metadata
+// Track imported tables metadata - stored in 'app' schema
 model ImportedTable {
   id              Int      @id @default(autoincrement())
   sessionId       String
@@ -93,9 +84,10 @@ model ImportedTable {
 
   @@unique([sessionId, tableName])
   @@map("imported_tables")
+  @@schema("app")
 }
 
-// Dynamic schema tracking for imported Airtable tables
+// Dynamic schema tracking for imported Airtable tables - stored in 'app' schema
 model AirtableSchema {
   id          Int      @id @default(autoincrement())
   tableName   String   @unique
@@ -108,6 +100,7 @@ model AirtableSchema {
   updatedAt DateTime @updatedAt
 
   @@map("airtable_schemas")
+  @@schema("app")
 }
 
 // Enum definitions
@@ -118,4 +111,8 @@ enum ImportStatus {
   FAILED
   PARTIAL_FAILED
   CANCELLED
+  
+  @@schema("app")
 }
+
+

@@ -1,287 +1,57 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
-const { requireSettingsPermission, requireDebugPermission, hasPermission } = require('../middleware/permissions');
-const ImportService = require('../services/import');
-const DatabaseService = require('../services/database');
+const { requireSettingsPermission } = require('../middleware/permissions');
 
 const router = express.Router();
 
-// Initialize database service
-const db = new DatabaseService();
+// Settings are now managed via environment variables - no database needed
 
 /**
- * Initialize database connection for settings management
- */
-async function initializeSettingsService() {
-  try {
-    await db.connect();
-    console.log('✅ Settings service database connection established');
-  } catch (error) {
-    console.error('❌ Failed to connect settings service to database:', error.message);
-  }
-}
-
-// Initialize on startup
-initializeSettingsService();
-
-/**
- * GET /api/settings - Retrieve current system settings
- * Returns configuration settings including API keys and database connection info
+ * GET /api/settings - Retrieve current system configuration status from environment variables
+ * Returns whether required environment variables are configured
  * Requires ADMIN or SUPERADMIN permissions for access
  */
 router.get('/', authenticateToken, requireSettingsPermission, async (req, res) => {
   try {
-    // Get settings from database using Prisma
-    const settings = await db.getSettings(req.user.userId);
+    // Get settings from environment variables
+    const airtableApiKey = process.env.AIRTABLE_API_KEY;
+    const airtableBaseId = process.env.AIRTABLE_BASE_ID;
+    const databaseUrl = process.env.DATABASE_URL;
     
-    // Determine database URL status
-    let databaseUrlStatus = 'default';
-    if (settings?.databaseUrl) {
-      // Check if it's a custom database URL (not the default local one)
-      const isLocalDefault = settings.databaseUrl.includes('localhost') || 
-                            settings.databaseUrl.includes('127.0.0.1') ||
-                            settings.databaseUrl.includes('.sqlite') ||
-                            settings.databaseUrl.startsWith('postgresql://postgres:password@localhost');
-      databaseUrlStatus = isLocalDefault ? 'default' : 'configured';
-    }
+    // Check if configuration is complete
+    const airtableConfigured = !!(airtableApiKey && airtableBaseId);
+    const databaseConfigured = !!databaseUrl;
     
-    // Return sanitized settings (hide sensitive data)
-    const sanitizedSettings = {
-      airtableBaseId: settings?.airtableBaseId || '',
-      databaseUrl: settings?.databaseUrl ? (databaseUrlStatus === 'default' ? '***DEFAULT***' : '***CONFIGURED***') : '',
-      databaseUrlStatus: databaseUrlStatus,
-      airtableApiKey: settings?.airtableApiKey ? '***CONFIGURED***' : '',
-      debugMode: settings?.debugMode || false,
-      lastUpdated: settings?.updatedAt || null
+    // Return configuration status (hide sensitive values)
+    const configStatus = {
+      airtableApiKey: airtableConfigured ? '***CONFIGURED***' : '',
+      airtableBaseId: airtableBaseId || '',
+      databaseUrl: databaseConfigured ? '***CONFIGURED***' : '',
+      configurationComplete: airtableConfigured && databaseConfigured
     };
 
-    res.json(sanitizedSettings);
+    res.json(configStatus);
   } catch (error) {
     console.error('❌ Error getting settings:', error.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-/**
- * Update user settings endpoint
- * Saves settings to Prisma database with validation
- */
-/**
- * POST /api/settings - Update system settings
- * Saves configuration settings to database including API keys and connection info
- * Requires ADMIN or SUPERADMIN permissions for modifications
- */
-router.post('/', authenticateToken, requireSettingsPermission, async (req, res) => {
-  try {
-    const { airtableApiKey, airtableBaseId, databaseUrl, debugMode } = req.body;
-
-    // Get existing settings to support partial updates
-    const userId = req.user.userId;
-    const existingSettings = await db.getSettings(userId);
-    
-    // Prepare update object with only provided values
-    const updateData = {};
-    
-    // Only update airtableApiKey if provided and not empty
-    if (airtableApiKey && airtableApiKey.trim() !== '') {
-      updateData.airtableApiKey = airtableApiKey;
-    } else if (existingSettings?.airtableApiKey) {
-      updateData.airtableApiKey = existingSettings.airtableApiKey;
-    }
-    
-    // Only update airtableBaseId if provided and not empty
-    if (airtableBaseId && airtableBaseId.trim() !== '') {
-      updateData.airtableBaseId = airtableBaseId;
-    } else if (existingSettings?.airtableBaseId) {
-      updateData.airtableBaseId = existingSettings.airtableBaseId;
-    }
-    
-    // Only update databaseUrl if provided (can be empty to clear)
-    if (databaseUrl !== undefined) {
-      updateData.databaseUrl = databaseUrl;
-    } else if (existingSettings?.databaseUrl) {
-      updateData.databaseUrl = existingSettings.databaseUrl;
-    }
-    
-    // Update debug mode if provided (boolean field)
-    // Debug mode requires special permissions - only SUPERADMIN and ADMIN can modify
-    if (debugMode !== undefined) {
-      // Check if user has debug permissions before allowing debug mode changes
-      if (!hasPermission(req.user, 'debug')) {
-        return res.status(403).json({ 
-          error: 'Debug mode access requires ADMIN or SUPERADMIN permissions',
-          feature: 'debugMode',
-          userRole: req.user.role
-        });
-      }
-      
-      updateData.debugMode = Boolean(debugMode);
-      // Set global debug flag for real-time logging
-      global.debugMode = Boolean(debugMode);
-      console.log(`🔧 Debug mode ${debugMode ? 'enabled' : 'disabled'} by ${req.user.email} (${req.user.role})`);
-    } else if (existingSettings?.debugMode !== undefined) {
-      updateData.debugMode = existingSettings.debugMode;
-      global.debugMode = existingSettings.debugMode;
-    }
-
-    // Validate that we have required fields after merging
-    if (!updateData.airtableApiKey || !updateData.airtableBaseId) {
-      return res.status(400).json({ 
-        error: 'Airtable API key and base ID are required. Please provide missing values or ensure they are already configured.' 
-      });
-    }
-
-    // Validate URL format if provided
-    if (updateData.databaseUrl && updateData.databaseUrl.trim() !== '') {
-      try {
-        new URL(updateData.databaseUrl);
-      } catch (urlError) {
-        return res.status(400).json({ 
-          error: 'Invalid database URL format' 
-        });
-      }
-    }
-
-    // Save settings using Prisma
-    const savedSettings = await db.saveSettings(userId, updateData);
-
-    console.log(`✅ Settings saved for user ${req.user.email}`);
-    res.json({ 
-      message: 'Settings saved successfully',
-      timestamp: savedSettings.updatedAt
-    });
-  } catch (error) {
-    console.error('❌ Error saving settings:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// POST route removed - all settings are now managed via environment variables
+// Use .env file to configure AIRTABLE_API_KEY, AIRTABLE_BASE_ID, and DATABASE_URL
 
 /**
- * Reset database URL to default endpoint
- */
-router.post('/reset-database', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const existingSettings = await db.getSettings(userId);
-    
-    if (!existingSettings) {
-      return res.status(404).json({ error: 'No settings found to reset' });
-    }
-
-    // Reset to default local PostgreSQL URL
-    const defaultDatabaseUrl = 'postgresql://postgres:password@localhost:5432/airtable_import';
-    
-    const updateData = {
-      airtableApiKey: existingSettings.airtableApiKey,
-      airtableBaseId: existingSettings.airtableBaseId,
-      databaseUrl: defaultDatabaseUrl
-    };
-
-    await db.saveSettings(userId, updateData);
-    
-    console.log(`✅ Database URL reset to default for user ${req.user.email}`);
-    res.json({ 
-      message: 'Database URL reset to default successfully'
-    });
-  } catch (error) {
-    console.error('❌ Error resetting database URL:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Test connections endpoint
- * Validates Airtable and database connections without saving settings
- */
-router.post('/test', authenticateToken, async (req, res) => {
-  try {
-    const { airtableApiKey, airtableBaseId, databaseUrl } = req.body;
-
-    // Validate required fields
-    if (!airtableApiKey || !airtableBaseId || !databaseUrl) {
-      return res.status(400).json({ 
-        error: 'Airtable API key, base ID, and database URL are required' 
-      });
-    }
-
-    // Test connections using import service
-    const importService = new ImportService();
-    const results = await importService.testConnections(
-      airtableApiKey,
-      airtableBaseId,
-      databaseUrl
-    );
-
-    console.log(`✅ Connection test completed for user ${req.user.email}:`, {
-      airtable: results.airtable.success,
-      database: results.database.success
-    });
-
-    res.json(results);
-  } catch (error) {
-    console.error('❌ Error testing connections:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Test connections using saved settings endpoint
- * Retrieves user's actual saved settings and tests connections
- */
-router.post('/test-saved', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    
-    // Get the actual saved settings (not sanitized)
-    const settings = await db.getSettings(userId);
-    
-    if (!settings) {
-      return res.status(404).json({ 
-        error: 'No settings found. Please configure your settings first.' 
-      });
-    }
-
-    // Validate that we have the required settings
-    if (!settings.airtableApiKey || !settings.airtableBaseId || !settings.databaseUrl) {
-      return res.status(400).json({ 
-        error: 'Incomplete settings. Please ensure Airtable API key, base ID, and database URL are configured.' 
-      });
-    }
-
-    // Test connections using import service with actual saved values
-    const importService = new ImportService();
-    const results = await importService.testConnections(
-      settings.airtableApiKey,
-      settings.airtableBaseId,
-      settings.databaseUrl
-    );
-
-    console.log(`✅ Connection test completed using saved settings for user ${req.user.email}:`, {
-      airtable: results.airtable.success,
-      database: results.database.success
-    });
-
-    res.json(results);
-  } catch (error) {
-    console.error('❌ Error testing saved connections:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-/**
- * Get user settings for internal use by other services
- * Returns the actual settings object (not sanitized) for service-to-service calls
+ * Get settings from environment variables for internal use by other services
+ * Returns the environment-based configuration for service-to-service calls
  * 
- * @param {number} userId - User ID
- * @returns {Promise<Object|null>} User settings or null if not found
+ * @returns {Object} Environment-based settings
  */
-async function getUserSettings(userId) {
-  try {
-    return await db.getSettings(userId);
-  } catch (error) {
-    console.error('❌ Error getting user settings:', error.message);
-    return null;
-  }
+function getSettingsFromEnv() {
+  return {
+    airtableApiKey: process.env.AIRTABLE_API_KEY,
+    airtableBaseId: process.env.AIRTABLE_BASE_ID,
+    databaseUrl: process.env.DATABASE_URL
+  };
 }
 
-module.exports = { router, getUserSettings };
+module.exports = { router, getSettingsFromEnv };

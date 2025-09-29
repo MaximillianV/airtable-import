@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AuthResponse, Settings, ConnectionTestResult, ImportSession, TableTestResult, DiscoverTablesResult, DiscoveredTable, RelationshipAnalysisResult } from '../types';
+import { AuthResponse, ConnectionTestResult, ImportSession, TableTestResult } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -17,34 +17,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 responses - only redirect for JWT authentication failures, not Airtable API failures
+// Handle 401 responses
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Only redirect to login for JWT authentication failures from our backend
-      // Check if this is a JWT authentication error vs an Airtable API error
-      const errorMessage = error.response?.data?.error || '';
-      
-      // JWT authentication errors from our backend middleware
-      const isJWTError = errorMessage.includes('No token provided') || 
-                        errorMessage.includes('Access denied') || 
-                        errorMessage.includes('Invalid token');
-      
-      // Airtable API errors should not trigger login redirect
-      const isAirtableError = errorMessage.includes('Invalid API key') ||
-                             errorMessage.includes('Base not found') ||
-                             errorMessage.includes('Access denied - check API key');
-      
-      if (isJWTError && !isAirtableError) {
-        console.log('JWT authentication failed, redirecting to login');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      } else {
-        // This is likely an Airtable API error or other service error, don't redirect
-        console.log('Non-JWT 401 error (likely external API):', errorMessage);
-      }
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
@@ -67,41 +47,9 @@ export const authAPI = {
   },
 };
 
-export const settingsAPI = {
-  get: async (): Promise<Partial<Settings>> => {
-    const response = await api.get('/settings');
-    return response.data;
-  },
-
-  save: async (settings: Partial<Settings>) => {
-    const response = await api.post('/settings', settings);
-    return response.data;
-  },
-
-  testConnections: async (settings: Settings): Promise<ConnectionTestResult> => {
-    const response = await api.post('/settings/test', settings);
-    return response.data;
-  },
-
-  testSavedConnections: async (): Promise<ConnectionTestResult> => {
-    const response = await api.post('/settings/test-saved');
-    return response.data;
-  },
-};
-
 export const importAPI = {
-  start: async (tableNames: string[], tables?: DiscoveredTable[], overwrite?: boolean, config?: any) => {
-    const payload: any = { tableNames };
-    if (tables && tables.length > 0) {
-      payload.tables = tables;
-    }
-    if (overwrite !== undefined) {
-      payload.overwrite = overwrite;
-    }
-    if (config) {
-      payload.schemaConfig = config;
-    }
-    const response = await api.post('/import/start', payload);
+  start: async (tableNames: string[]) => {
+    const response = await api.post('/import/start', { tableNames });
     return response.data;
   },
 
@@ -120,54 +68,75 @@ export const importAPI = {
     return response.data;
   },
 
-  discoverTables: async (): Promise<DiscoverTablesResult> => {
+  // Table discovery
+  discoverTables: async () => {
     const response = await api.get('/import/discover-tables');
     return response.data;
   },
 
+  // Schema and relationship analysis
   getSchemaPreview: async () => {
     const response = await api.get('/import/schema-preview');
     return response.data;
   },
 
-  retryTable: async (sessionId: string, tableName: string) => {
-    const response = await api.post('/import/retry-table', { sessionId, tableName });
-    return response.data;
-  },
-
-  // Relationship Analysis API
-  analyzeRelationships: async (): Promise<RelationshipAnalysisResult> => {
+  analyzeRelationships: async () => {
     const response = await api.post('/import/analyze-relationships');
     return response.data;
   },
 
-  // Debug Relationships API - provides detailed debugging information
-  debugRelationships: async (): Promise<any> => {
+  debugRelationships: async () => {
     const response = await api.post('/import/debug-relationships');
     return response.data;
   },
 
-  // Field Type Analysis API - analyzes special Airtable field types
-  analyzeFieldTypes: async (): Promise<any> => {
+  analyzeFieldTypes: async () => {
     const response = await api.post('/import/analyze-field-types');
     return response.data;
   },
 
-  // Data Pattern Analysis API - performs intelligent relationship detection using statistical analysis
-  analyzeDataPatterns: async (tables: any[]): Promise<any> => {
-    const response = await api.post('/import/analyze-data-patterns', { tables });
+  // Advanced workflows
+  startFullImportWorkflow: async () => {
+    const response = await api.post('/import/start-full-import-workflow');
     return response.data;
   },
 
-  // Apply Schema Configuration API - applies user-confirmed schema configuration to import
-  applySchemaConfiguration: async (config: any): Promise<any> => {
-    const response = await api.post('/import/apply-schema-configuration', { config });
+  // Table retry functionality
+  retryTable: async (sessionId: string, tableName: string) => {
+    const response = await api.post('/import/retry-table', { sessionId, tableName });
+    return response.data;
+  },
+};
+
+// V2 Import API
+export const v2ImportAPI = {
+  discoverTables: async () => {
+    const response = await api.get('/v2-import/discover-tables');
     return response.data;
   },
 
-  // Hybrid Relationship Analysis API - combines schema and sample data for higher confidence
-  analyzeHybridRelationships: async (): Promise<any> => {
-    const response = await api.post('/import/analyze-hybrid-relationships');
+  phase1CreateSchema: async (options: { selectedTables?: string[] | null }) => {
+    const response = await api.post('/v2-import/phase1-create-schema', options);
+    return response.data;
+  },
+
+  phase2ImportData: async (sessionId: string) => {
+    const response = await api.post('/v2-import/phase2-import-data', { sessionId });
+    return response.data;
+  },
+
+  analyzeRelationships: async (sessionId: string) => {
+    const response = await api.post('/v2-import/analyze-relationships', { sessionId });
+    return response.data;
+  },
+
+  getAnalysis: async (analysisId: string) => {
+    const response = await api.get(`/v2-import/analysis/${analysisId}`);
+    return response.data;
+  },
+
+  applyApprovedRelationships: async (analysisId: string, approvedRelationships: any[]) => {
+    const response = await api.post('/v2-import/apply-approved-relationships', { analysisId, approvedRelationships });
     return response.data;
   },
 };

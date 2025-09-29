@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { settingsAPI, importAPI } from '../services/api';
-import { Settings, ImportSession, ImportProgress, DiscoveredTable } from '../types';
+import { importAPI } from '../services/api';
+import { ImportSession, ImportProgress, DiscoveredTable } from '../types';
 import { socketService } from '../services/socket';
 import SchemaMappingWizard from './SchemaMappingWizard';
 import EnhancedRelationshipWizard from './EnhancedRelationshipWizard';
 import DebugConsole from './DebugConsole';
 
 const Import: React.FC = () => {
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [discovering, setDiscovering] = useState(false);
   const [discoveredTables, setDiscoveredTables] = useState<DiscoveredTable[]>([]);
@@ -29,8 +28,6 @@ const Import: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadSettings();
-    
     // Setup socket listeners for real-time updates
     const unsubscribeProgress = socketService.onProgressUpdate((data: ImportProgress) => {
       setProgress(prev => ({
@@ -39,7 +36,7 @@ const Import: React.FC = () => {
       }));
       
       // Send debug messages to console if enabled
-      if (settings?.debugMode && showDebugConsole && (window as any).debugLog) {
+      if (showDebugConsole && (window as any).debugLog) {
         const debugLog = (window as any).debugLog;
         
         let level: 'info' | 'success' | 'error' | 'warn' = 'info';
@@ -104,7 +101,7 @@ const Import: React.FC = () => {
         setImporting(false);
         
         // Send completion message to debug console
-        if (settings?.debugMode && showDebugConsole && (window as any).debugLog) {
+        if (showDebugConsole && (window as any).debugLog) {
           const debugLog = (window as any).debugLog;
           const level = sessionData.status === 'COMPLETED' ? 'success' : 'error';
           debugLog(level, `Import session ${sessionData.status.toLowerCase()}: ${sessionData.successfulTables}/${sessionData.totalTables} tables successful`, {
@@ -125,32 +122,11 @@ const Import: React.FC = () => {
       unsubscribeProgress();
       unsubscribeSessionComplete();
     };
-  }, [currentSession?.sessionId, selectedTables, settings?.debugMode, showDebugConsole]);
+  }, [currentSession?.sessionId, selectedTables, showDebugConsole]);
 
-  // Check if we need to clear cache when base ID changes
-  useEffect(() => {
-    if (settings?.airtableBaseId && cachedBaseId && settings.airtableBaseId !== cachedBaseId) {
-      // Base ID changed, clear cached tables
-      setDiscoveredTables([]);
-      setSelectedTables([]);
-      setCachedBaseId(settings.airtableBaseId);
-    } else if (settings?.airtableBaseId && !cachedBaseId) {
-      setCachedBaseId(settings.airtableBaseId);
-    }
-  }, [settings?.airtableBaseId, cachedBaseId]);
+  // Cache management is now handled on the backend via environment variables
 
-  const loadSettings = async () => {
-    try {
-      const settingsData = await settingsAPI.get();
-      if (!settingsData.airtableApiKey || !settingsData.airtableBaseId || !settingsData.databaseUrl) {
-        setError('Please configure your settings before importing');
-        return;
-      }
-      setSettings(settingsData as Settings);
-    } catch (error) {
-      setError('Failed to load settings');
-    }
-  };
+  // Settings are now managed via environment variables on the backend
 
   /**
    * Fetches all tables in the Airtable base with real-time progress logging.
@@ -159,7 +135,7 @@ const Import: React.FC = () => {
    */
   const discoverTables = async (forceRefresh = false) => {
     // Check if we should use cached results
-    if (!forceRefresh && discoveredTables.length > 0 && settings?.airtableBaseId === cachedBaseId) {
+    if (!forceRefresh && discoveredTables.length > 0) {
       console.log('Using cached table discovery results');
       return;
     }
@@ -168,8 +144,8 @@ const Import: React.FC = () => {
     setError('');
     setDiscoveryLogs([]);
     
-    // Clear previous results only if force refresh or different base
-    if (forceRefresh || settings?.airtableBaseId !== cachedBaseId) {
+    // Clear previous results if force refresh
+    if (forceRefresh) {
       setDiscoveredTables([]);
       setSelectedTables([]);
     }
@@ -196,7 +172,7 @@ const Import: React.FC = () => {
         setDiscoveryLogs(prev => [...prev, `Found ${result.tables.length} tables in base`]);
         
         // Add each table discovery log
-        result.tables.forEach((table, index) => {
+        result.tables.forEach((table: any, index: number) => {
           setTimeout(() => {
             setDiscoveryLogs(prev => [...prev, `Getting record count for table: ${table.name}`]);
             setTimeout(() => {
@@ -212,12 +188,12 @@ const Import: React.FC = () => {
         // Set final results after all logs are shown
         setTimeout(() => {
           setDiscoveredTables(result.tables);
-          setCachedBaseId(settings?.airtableBaseId || null);
+          setCachedBaseId('configured');
           
           // Pre-select all accessible tables (those without errors)
           const accessibleTableNames = result.tables
-            .filter(table => table.recordCount >= 0 && !table.error)
-            .map(table => table.name);
+            .filter((table: any) => table.recordCount >= 0 && !table.error)
+            .map((table: any) => table.name);
           setSelectedTables(accessibleTableNames);
           
           // Show summary message
@@ -289,8 +265,8 @@ const Import: React.FC = () => {
       console.log(`Starting import for ${selectedTableObjects.length} tables:`, 
         selectedTableObjects.map(t => `${t.name} (${t.recordCount} records)`).join(', '));
 
-      // Send both formats for backward compatibility, including overwrite flag
-      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite);
+      // Start import with selected tables
+      const result = await importAPI.start(selectedTables);
       setCurrentSession(result);
       
       // Connect to socket for real-time updates
@@ -392,8 +368,8 @@ const Import: React.FC = () => {
 
       console.log('🧙‍♂️ Full import configuration:', fullConfig);
 
-      // Start import with complete configuration
-      const result = await importAPI.start(selectedTables, selectedTableObjects, overwrite, fullConfig);
+      // Start import with selected tables
+      const result = await importAPI.start(selectedTables);
       setCurrentSession(result);
       
       // Connect to socket for real-time updates
@@ -430,28 +406,15 @@ const Import: React.FC = () => {
     }
   };
 
-  if (!settings) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.errorCard}>
-          <h2>Settings Required</h2>
-          <p>{error || 'Please configure your settings before importing'}</p>
-          <Link to="/settings" style={styles.primaryButton}>
-            Go to Settings
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // Environment variables are configured on the backend
 
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>Import from Airtable</h1>
         <div style={styles.headerActions}>
-          {settings?.debugMode && (
-            <button
-              onClick={() => setShowDebugConsole(!showDebugConsole)}
+          <button
+            onClick={() => setShowDebugConsole(!showDebugConsole)}
               style={{
                 ...styles.debugButton,
                 backgroundColor: showDebugConsole ? '#4f46e5' : '#6b7280'
@@ -459,7 +422,6 @@ const Import: React.FC = () => {
             >
               🔧 Debug Console
             </button>
-          )}
           <Link to="/dashboard" style={styles.backButton}>
             ← Back to Dashboard
           </Link>
@@ -741,12 +703,10 @@ const Import: React.FC = () => {
       )}
 
       {/* Debug Console */}
-      {settings?.debugMode && (
-        <DebugConsole
-          isVisible={showDebugConsole}
-          onToggle={() => setShowDebugConsole(!showDebugConsole)}
-        />
-      )}
+      <DebugConsole
+        isVisible={showDebugConsole}
+        onToggle={() => setShowDebugConsole(!showDebugConsole)}
+      />
     </div>
   );
 };

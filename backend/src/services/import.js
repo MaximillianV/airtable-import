@@ -22,6 +22,7 @@ class ImportService {
 
   async connect(airtableApiKey, airtableBaseId, databaseUrl) {
     try {
+
       // Connect to both services - pass base ID to database service for naming
       this.airtableService.connect(airtableApiKey, airtableBaseId);
       const dbConnection = await this.importDatabaseService.connect(databaseUrl, airtableBaseId);

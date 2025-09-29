@@ -1,9 +1,9 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const ImportService = require('../services/import');
-const { getUserSettings } = require('./settings');
 const DatabaseService = require('../services/database');
 const { sanitizeTableName, sanitizeColumnName } = require('../utils/naming');
+const { getSettingsFromEnv } = require('../utils/envSettings');
 
 const router = express.Router();
 
@@ -32,8 +32,8 @@ initializeImportService();
  */
 router.get('/schema-preview', authenticateToken, async (req, res) => {
   try {
-    // Get user settings for Airtable connection
-    const settings = await getUserSettings(req.user.userId);
+    // Get settings from environment variables
+    const settings = getSettingsFromEnv();
     
     // Validate required Airtable settings
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
@@ -177,7 +177,7 @@ router.post('/analyze-relationships', authenticateToken, async (req, res) => {
     console.log('🔍 Starting relationship analysis request...');
     
     // Get user settings to access Airtable credentials
-    const settings = await getUserSettings(req.user.userId);
+    const settings = getSettingsFromEnv();
     
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
       return res.status(400).json({ 
@@ -230,7 +230,7 @@ router.post('/debug-relationships', authenticateToken, async (req, res) => {
     console.log('🔍 Starting detailed relationship debugging...');
     
     // Get user settings to access Airtable credentials
-    const settings = await getUserSettings(req.user.userId);
+    const settings = getSettingsFromEnv();
     
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
       return res.status(400).json({ 
@@ -280,7 +280,7 @@ router.post('/analyze-field-types', authenticateToken, async (req, res) => {
     console.log('🔧 Starting field type analysis...');
     
     // Get user settings for Airtable connection
-    const settings = await getUserSettings(req.user.userId);
+    const settings = getSettingsFromEnv();
     
     // Validate required Airtable settings
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
@@ -458,7 +458,7 @@ router.get('/test-debug', authenticateToken, async (req, res) => {
     const { sessionId = 'test-session' } = req.query;
     
     // Get settings to check debug mode
-    const userSettings = await getUserSettings(req.user.id);
+    const userSettings = getSettingsFromEnv();
     
     // Set global debug mode based on user settings
     global.debugMode = userSettings?.debugMode || false;
@@ -555,7 +555,7 @@ router.post('/start', authenticateToken, async (req, res) => {
     }
 
     // Get user settings from database
-    const settings = await getUserSettings(userId);
+    const settings = getSettingsFromEnv();
     if (!settings) {
       return res.status(400).json({ error: 'Please configure your settings first' });
     }
@@ -885,7 +885,7 @@ router.get('/discover-tables', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     // Get user settings from database
-    const settings = await getUserSettings(userId);
+    const settings = getSettingsFromEnv();
     if (!settings) {
       return res.status(400).json({ error: 'Please configure your settings first' });
     }
@@ -949,7 +949,7 @@ router.post('/test-table', authenticateToken, async (req, res) => {
     }
 
     // Get user settings from database
-    const settings = await getUserSettings(userId);
+    const settings = getSettingsFromEnv();
     if (!settings) {
       return res.status(400).json({ error: 'Please configure your settings first' });
     }
@@ -1014,7 +1014,7 @@ router.post('/retry-table', authenticateToken, async (req, res) => {
     }
 
     // Get user settings for connection details
-    const settings = await getUserSettings(userId);
+    const settings = getSettingsFromEnv();
     if (!settings) {
       return res.status(400).json({ error: 'Please configure your settings first' });
     }
@@ -1261,8 +1261,7 @@ router.post('/analyze-hybrid-relationships', authenticateToken, async (req, res)
     console.log('Starting hybrid relationship analysis (schema + sample data)...');
     
     // Get user settings for Airtable connection
-    const { getUserSettings } = require('./settings');
-    const settings = await getUserSettings(req.user.userId);
+    const settings = getSettingsFromEnv();
     
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
       return res.status(400).json({ 
@@ -1270,12 +1269,26 @@ router.post('/analyze-hybrid-relationships', authenticateToken, async (req, res)
       });
     }
 
-    // Initialize Hybrid Relationship Analyzer
+    // Generate a session ID for tracking analysis progress (reuse existing system)
+    const analysisSessionId = `analysis-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create progress callback that emits to existing Socket.IO system
+    const progressCallback = (progressData) => {
+      if (global.socketIO) {
+        // Reuse the existing 'import-progress' event that frontend already listens to
+        global.socketIO.emit('import-progress', {
+          sessionId: analysisSessionId,
+          ...progressData
+        });
+      }
+    };
+
+    // Initialize Hybrid Relationship Analyzer with existing progress system
     const HybridRelationshipAnalyzer = require('../services/hybridRelationshipAnalyzer');
     const analyzer = new HybridRelationshipAnalyzer(db);
     
-    // Perform comprehensive hybrid analysis
-    const analysisResults = await analyzer.analyzeRelationshipsHybrid(settings);
+    // Perform comprehensive hybrid analysis with real-time progress
+    const analysisResults = await analyzer.analyzeRelationshipsHybrid(settings, progressCallback);
     
     console.log(`Hybrid analysis complete: ${analysisResults.relationships.length} relationships, ${analysisResults.analysis.highConfidenceCount} high confidence`);
     
@@ -1344,6 +1357,62 @@ router.post('/apply-schema-configuration', authenticateToken, async (req, res) =
     console.error('Schema configuration application failed:', error.message);
     res.status(500).json({ 
       error: `Schema configuration application failed: ${error.message}` 
+    });
+  }
+});
+
+/**
+ * Full Import Workflow endpoint - New comprehensive workflow
+ * 1. Create PostgreSQL tables with snake_case naming
+ * 2. Import ALL data from Airtable (not just samples)
+ * 3. Analyze relationships using imported data
+ * 4. Apply relationship schema (foreign keys, junction tables)
+ */
+router.post('/start-full-import-workflow', authenticateToken, async (req, res) => {
+  try {
+    console.log('Starting full import workflow (create DB → import all data → analyze relationships)...');
+    
+    // Get user settings for Airtable connection
+    const settings = getSettingsFromEnv();
+    
+    if (!settings.airtableApiKey || !settings.airtableBaseId) {
+      return res.status(400).json({ 
+        error: 'Airtable API key and Base ID are required for full import workflow' 
+      });
+    }
+
+    // Generate session ID for tracking the entire workflow
+    const workflowSessionId = `workflow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create progress callback that emits to existing Socket.IO system
+    const progressCallback = (progressData) => {
+      if (global.socketIO) {
+        global.socketIO.emit('import-progress', {
+          sessionId: workflowSessionId,
+          ...progressData
+        });
+      }
+    };
+
+    // Initialize Full Import Workflow Service
+    const FullImportWorkflowService = require('../services/fullImportWorkflow');
+    const workflowService = new FullImportWorkflowService(db);
+    
+    // Start the comprehensive workflow
+    const workflowResults = await workflowService.executeFullWorkflow(settings, progressCallback);
+    
+    console.log(`Full import workflow complete: ${workflowResults.relationships?.length || 0} relationships, ${workflowResults.tablesCreated} tables created, ${workflowResults.recordsImported} records imported`);
+    
+    res.json({
+      success: true,
+      data: workflowResults,
+      message: 'Full import workflow completed successfully'
+    });
+    
+  } catch (error) {
+    console.error('Full import workflow failed:', error.message);
+    res.status(500).json({ 
+      error: `Full import workflow failed: ${error.message}` 
     });
   }
 });
