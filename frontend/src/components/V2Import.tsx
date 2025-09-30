@@ -124,9 +124,7 @@ const V2Import: React.FC = () => {
 
       console.log('📥 Starting V2 Phase 2 for session:', currentSession.sessionId);
 
-      const response = await v2ImportAPI.phase2ImportData({
-        sessionId: currentSession.sessionId
-      });
+      const response = await v2ImportAPI.phase2ImportData(currentSession.sessionId);
 
       if (response.success) {
         setCurrentSession(prev => prev ? {
@@ -158,9 +156,7 @@ const V2Import: React.FC = () => {
 
       console.log('🔗 Starting V2 Phase 3 relationship analysis for session:', currentSession.sessionId);
 
-      const response = await v2ImportAPI.analyzeRelationships({
-        sessionId: currentSession.sessionId
-      });
+      const response = await v2ImportAPI.analyzeRelationships(currentSession.sessionId);
 
       if (response.success) {
         setRelationshipProposals(response.proposalReport || []);

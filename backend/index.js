@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -7,8 +7,10 @@ const { Server } = require('socket.io');
 
 const authRoutes = require('./src/routes/auth');
 const { router: importRoutes, setupSocketIO } = require('./src/routes/import');
-const { router: settingsRoutes } = require('./src/routes/settings');
 const { router: redisRoutes } = require('./src/routes/redis');
+const stagedWorkflowRoutes = require('./src/routes/staged-workflow');
+const enhancedRelationshipRoutes = require('./src/routes/enhanced-relationship-analysis');
+const modularAnalysisRoutes = require('./src/routes/modular-relationship-analysis');
 
 // Initialize Redis services
 const redisService = require('./src/services/redis');
@@ -37,12 +39,27 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/import', importRoutes);
-app.use('/api/settings', settingsRoutes);
 app.use('/api/redis', redisRoutes);
+app.use('/api/staged-workflow', stagedWorkflowRoutes);
+app.use('/api/enhanced-relationship-analysis', enhancedRelationshipRoutes);
+app.use('/api/modular-analysis', modularAnalysisRoutes);
+app.use('/api/v2-import', require('./src/routes/v2-import'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Configuration status endpoint
+app.get('/api/health/config', (req, res) => {
+  const airtableConfigured = !!(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
+  const databaseConfigured = !!process.env.DATABASE_URL;
+  
+  res.json({
+    airtableConfigured,
+    databaseConfigured,
+    configurationComplete: airtableConfigured && databaseConfigured
+  });
 });
 
 // Setup Socket.IO
@@ -71,16 +88,8 @@ async function initializeRedis() {
           await redisSessionService.cleanupExpiredSessions();
         }, 5 * 60 * 1000); // Every 5 minutes
         
-        // Cleanup on exit
-        process.on('SIGTERM', () => {
-          clearInterval(cleanupInterval);
-          redisService.disconnect();
-        });
-        
-        process.on('SIGINT', () => {
-          clearInterval(cleanupInterval);
-          redisService.disconnect();
-        });
+        // Store cleanup interval for graceful shutdown
+        global.cleanupInterval = cleanupInterval;
       } else {
         console.log('⚠️  Redis connection failed, using in-memory fallback');
       }
@@ -98,4 +107,58 @@ server.listen(PORT, async () => {
   
   // Initialize Redis after server starts
   await initializeRedis();
+});
+
+/**
+ * Graceful shutdown handler for SIGINT (Ctrl+C) and SIGTERM
+ * Ensures proper cleanup of Redis connections and other resources
+ */
+async function gracefulShutdown(signal) {
+  console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
+  
+  try {
+    // Clear Redis cleanup interval if it exists
+    if (global.cleanupInterval) {
+      console.log('🔄 Clearing Redis cleanup interval...');
+      clearInterval(global.cleanupInterval);
+    }
+    
+    // Disconnect Redis services
+    console.log('🔄 Disconnecting from Redis...');
+    await redisService.disconnect();
+    console.log('✅ Redis disconnected successfully');
+    
+    // Close the HTTP server
+    console.log('🔄 Closing HTTP server...');
+    server.close(() => {
+      console.log('✅ HTTP server closed');
+      console.log('👋 Graceful shutdown completed');
+      process.exit(0);
+    });
+    
+    // Force exit after 10 seconds if graceful shutdown fails
+    setTimeout(() => {
+      console.error('❌ Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+    
+  } catch (error) {
+    console.error('❌ Error during graceful shutdown:', error.message);
+    process.exit(1);
+  }
+}
+
+// Handle graceful shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });

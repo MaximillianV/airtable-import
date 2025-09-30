@@ -14,7 +14,7 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const V2ImportService = require('../services/V2ImportService');
-const RelationshipAnalyzer = require('../services/RelationshipAnalyzer');
+const CardinalityRelationshipAnalyzer = require('../services/CardinalityRelationshipAnalyzer');
 const ImportDatabaseService = require('../services/importDatabase');
 
 const router = express.Router();
@@ -29,9 +29,9 @@ router.get('/discover-tables', authenticateToken, async (req, res) => {
   try {
     console.log('🔍 V2: Discovering available tables...');
     
-    // Get user settings
-    const { getUserSettings } = require('./settings');
-    const settings = await getUserSettings(req.user.userId);
+    // Get settings from environment variables
+    const { getSettingsFromEnv } = require('../utils/envSettings');
+    const settings = getSettingsFromEnv();
     
     if (!settings.airtableApiKey || !settings.airtableBaseId) {
       return res.status(400).json({ 
@@ -76,9 +76,9 @@ router.post('/phase1-create-schema', authenticateToken, async (req, res) => {
   try {
     console.log('🚀 V2 Phase 1: Creating type-aware schema...');
     
-    // Get user settings
-    const { getUserSettings } = require('./settings');
-    const settings = await getUserSettings(req.user.userId);
+    // Get settings from environment variables
+    const { getSettingsFromEnv } = require('../utils/envSettings');
+    const settings = getSettingsFromEnv();
     
     if (!settings.airtableApiKey || !settings.airtableBaseId || !settings.databaseUrl) {
       return res.status(400).json({ 
@@ -206,14 +206,14 @@ router.post('/analyze-relationships', authenticateToken, async (req, res) => {
     const importMetadata = importService.getSessionMetadata(sessionId);
 
     // Connect to the import database for analysis
-    const { getUserSettings } = require('./settings');
-    const settings = await getUserSettings(req.user.userId);
+    const { getSettingsFromEnv } = require('../utils/envSettings');
+    const settings = getSettingsFromEnv();
     
     const importDb = new ImportDatabaseService();
     await importDb.connect(settings.databaseUrl, settings.airtableBaseId);
 
-    // Run relationship analysis
-    const analyzer = new RelationshipAnalyzer();
+    // Run cardinality-based relationship analysis (enhanced approach)
+    const analyzer = new CardinalityRelationshipAnalyzer();
     const analysisReport = await analyzer.analyzeRelationships(importDb, importMetadata);
 
     await importDb.disconnect();

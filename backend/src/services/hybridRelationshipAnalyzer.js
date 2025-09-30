@@ -14,7 +14,26 @@ class HybridRelationshipAnalyzer {
     this.db = databaseService;
     this.airtableService = new AirtableService();
     this.CONFIDENCE_THRESHOLD = 0.70;
-    this.SAMPLE_SIZE = 50; // Sample records per table for analysis
+    this.SAMPLE_SIZE = 50; // Sample records per table for analysis (performance optimization)
+  }
+
+  /**
+   * Emits real-time progress updates using existing progress callback system
+   */
+  emitProgress(message, status = 'analyzing', progressCallback = null) {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    
+    console.log(logMessage); // Still log to backend console
+    
+    if (progressCallback) {
+      progressCallback({
+        status: status,
+        message: logMessage,
+        timestamp: timestamp,
+        phase: 'analysis'
+      });
+    }
   }
 
   /**
@@ -24,26 +43,42 @@ class HybridRelationshipAnalyzer {
    * @param {Object} settings - Airtable connection settings
    * @returns {Promise<Object>} Comprehensive relationship analysis
    */
-  async analyzeRelationshipsHybrid(settings) {
-    console.log('Starting hybrid relationship analysis (schema + sample data)...');
+  async analyzeRelationshipsHybrid(settings, progressCallback = null) {
+    this.emitProgress('🚀 Starting hybrid relationship analysis...', 'analyzing', progressCallback);
+    this.emitProgress('🔧 Configuration: Using sample size of 50 records per table for performance optimization', 'analyzing', progressCallback);
+    this.emitProgress('📡 Data source: Direct from Airtable API (no local database storage)', 'analyzing', progressCallback);
     
     try {
       // Step 1: Connect to Airtable
+      this.emitProgress('🔗 Connecting to Airtable API...', 'connecting', progressCallback);
       this.airtableService.connect(settings.airtableApiKey, settings.airtableBaseId);
+      this.emitProgress('✅ Connected to Airtable base: ' + settings.airtableBaseId, 'connected', progressCallback);
       
       // Step 2: Get schema information
-      const schemaAnalysis = await this.analyzeSchemaRelationships();
+      this.emitProgress('🔍 Starting schema analysis...', 'schema-analysis', progressCallback);
+      const schemaAnalysis = await this.analyzeSchemaRelationships(progressCallback);
+      this.emitProgress(`✅ Schema analysis complete: ${schemaAnalysis.tables.length} tables, ${schemaAnalysis.relationships.length} relationships found`, 'schema-complete', progressCallback);
       
       // Step 3: Get sample data for statistical analysis
-      const sampleData = await this.getSampleDataFromTables(schemaAnalysis.tables);
+      this.emitProgress('📊 Starting sample data collection...', 'data-collection', progressCallback);
+      this.emitProgress('💡 Why 50 records? Balance between accuracy and performance - larger samples take exponentially longer', 'data-collection', progressCallback);
+      const sampleData = await this.getSampleDataFromTables(schemaAnalysis.tables, progressCallback);
+      this.emitProgress(`✅ Sample data collection complete: ${sampleData.length} tables with data`, 'data-complete', progressCallback);
       
       // Step 4: Perform statistical analysis on sample data
-      const dataPatternAnalysis = await this.analyzeDataPatterns(sampleData);
+      this.emitProgress('🧮 Starting statistical pattern analysis...', 'pattern-analysis', progressCallback);
+      const dataPatternAnalysis = await this.analyzeDataPatterns(sampleData, progressCallback);
+      this.emitProgress(`✅ Pattern analysis complete: ${dataPatternAnalysis.relationships?.length || 0} data patterns detected`, 'pattern-complete', progressCallback);
       
       // Step 5: Combine schema and data analysis for final confidence scores
-      const hybridAnalysis = await this.combineAnalysisResults(schemaAnalysis, dataPatternAnalysis);
+      this.emitProgress('🔄 Combining schema and data analysis...', 'combining', progressCallback);
+      const hybridAnalysis = await this.combineAnalysisResults(schemaAnalysis, dataPatternAnalysis, progressCallback);
       
-      console.log(`Hybrid analysis complete: ${hybridAnalysis.relationships.length} relationships with enhanced confidence`);
+      this.emitProgress(`🎉 Hybrid analysis complete!`, 'completed', progressCallback);
+      this.emitProgress(`📈 Final results: ${hybridAnalysis.relationships.length} total relationships`, 'completed', progressCallback);
+      this.emitProgress(`   • High confidence (≥70%): ${hybridAnalysis.analysis.highConfidenceCount}`, 'completed', progressCallback);
+      this.emitProgress(`   • Data enhanced: ${hybridAnalysis.analysis.dataEnhancedCount}`, 'completed', progressCallback);
+      this.emitProgress(`   • Schema only: ${hybridAnalysis.analysis.schemaBasedCount - hybridAnalysis.analysis.dataEnhancedCount}`, 'completed', progressCallback);
       
       return hybridAnalysis;
       
@@ -57,15 +92,20 @@ class HybridRelationshipAnalyzer {
    * Performs schema-based relationship analysis with improved table resolution.
    * This provides baseline relationship detection with proper target table mapping.
    */
-  async analyzeSchemaRelationships() {
-    console.log('Analyzing schema relationships...');
+  async analyzeSchemaRelationships(progressCallback = null) {
+    this.emitProgress('📋 Discovering tables using Airtable Metadata API...', 'schema-discovery', progressCallback);
     
     // Step 1: Discover all tables with full metadata (id, name, recordCount)
     const tables = await this.airtableService.discoverTablesWithCounts();
-    console.log(`Discovered ${tables.length} tables for relationship analysis`);
-    console.log('Table list:', tables.map(t => `${t.name} (${t.id})`).join(', '));
+    this.emitProgress(`📊 Discovered ${tables.length} tables in Airtable base`, 'schema-discovery', progressCallback);
+    
+    // Show table details
+    for (const table of tables) {
+      this.emitProgress(`   • ${table.name}: ${table.recordCount} records (ID: ${table.id.substring(0,8)}...)`, 'schema-discovery', progressCallback);
+    }
     
     // Step 2: Create lookup map for table ID to table object
+    this.emitProgress('🗺️  Building table lookup maps for relationship resolution...', 'schema-mapping', progressCallback);
     const tableIdMap = new Map();
     const tableNameMap = new Map();
     
@@ -74,7 +114,7 @@ class HybridRelationshipAnalyzer {
       tableNameMap.set(table.name, table);
     }
     
-    console.log(`Built lookup maps with ${tableIdMap.size} tables`);
+    this.emitProgress(`✅ Built lookup maps for ${tableIdMap.size} tables`, 'schema-mapping', progressCallback);
     
     const relationships = [];
     
@@ -163,21 +203,40 @@ class HybridRelationshipAnalyzer {
    * Gets sample data from all tables for statistical analysis.
    * Limits to SAMPLE_SIZE records per table to avoid performance issues.
    */
-  async getSampleDataFromTables(tables) {
-    console.log(`Getting sample data from ${tables.length} tables...`);
+  async getSampleDataFromTables(tables, progressCallback = null) {
+    this.emitProgress(`📊 Starting sample data collection from ${tables.length} tables...`, 'data-collection', progressCallback);
+    this.emitProgress('🔄 Method: Direct API calls to Airtable (no local storage)', 'data-collection', progressCallback);
     
     const sampleData = [];
+    let processedTables = 0;
     
     for (const table of tables) {
       try {
-        console.log(`Sampling ${this.SAMPLE_SIZE} records from table: ${table.name}`);
+        processedTables++;
         
-        // Get sample records from this table
-        const records = await this.airtableService.getTableRecords(table.name, null, {
+        this.emitProgress(`📥 [${processedTables}/${tables.length}] Sampling ${table.name}...`, 'data-sampling', progressCallback);
+        this.emitProgress(`   🎯 Target: ${this.SAMPLE_SIZE} records (total: ${table.recordCount})`, 'data-sampling', progressCallback);
+        
+        // Use the existing AirtableService progress callback system
+        const startTime = Date.now();
+        const records = await this.airtableService.getTableRecords(table.name, (progressData) => {
+          // Forward Airtable progress to our analysis progress
+          if (progressCallback) {
+            progressCallback({
+              status: 'fetching-data',
+              message: `[${new Date().toLocaleTimeString()}] 📄 Fetching ${table.name}: ${progressData.recordsProcessed} records...`,
+              table: table.name,
+              recordsProcessed: progressData.recordsProcessed
+            });
+          }
+        }, {
           maxRecords: this.SAMPLE_SIZE
         });
+        const duration = Date.now() - startTime;
         
         if (records && records.length > 0) {
+          const samplingRatio = ((records.length / table.recordCount) * 100).toFixed(1);
+          
           sampleData.push({
             name: table.name,
             records: records,
@@ -185,18 +244,19 @@ class HybridRelationshipAnalyzer {
             totalEstimate: table.recordCount || records.length
           });
           
-          console.log(`Sampled ${records.length} records from ${table.name}`);
+          this.emitProgress(`   ✅ Sampled ${records.length}/${table.recordCount} records (${samplingRatio}%) in ${duration}ms`, 'data-sampling', progressCallback);
         } else {
-          console.log(`No records found in table ${table.name}`);
+          this.emitProgress(`   ⚠️  No records found in table ${table.name}`, 'data-sampling', progressCallback);
         }
         
       } catch (error) {
-        console.warn(`Failed to sample data from table ${table.name}:`, error.message);
+        this.emitProgress(`   ❌ Failed to sample ${table.name}: ${error.message}`, 'data-error', progressCallback);
         // Continue with other tables
       }
     }
     
-    console.log(`Sample data collection complete: ${sampleData.length} tables with data`);
+    const totalRecordsSampled = sampleData.reduce((sum, table) => sum + table.sampleSize, 0);
+    this.emitProgress(`✅ Sample collection complete: ${sampleData.length} tables, ${totalRecordsSampled} total records`, 'data-complete', progressCallback);
     return sampleData;
   }
 
@@ -204,23 +264,26 @@ class HybridRelationshipAnalyzer {
    * Performs statistical analysis on sample data.
    * Uses the existing DataPatternAnalyzer logic but with sample data.
    */
-  async analyzeDataPatterns(sampleData) {
+  async analyzeDataPatterns(sampleData, progressCallback = null) {
     if (!sampleData || sampleData.length === 0) {
-      console.log('No sample data available for pattern analysis');
+      this.emitProgress('⚠️ No sample data available for pattern analysis', 'pattern-error', progressCallback);
       return { relationships: [], confidence: 'low', source: 'no-data' };
     }
     
-    console.log('Analyzing data patterns from sample data...');
+    this.emitProgress('🧠 Analyzing data patterns from sample data...', 'pattern-start', progressCallback);
     
     const DataPatternAnalyzer = require('./dataPatternAnalyzer');
     const analyzer = new DataPatternAnalyzer(this.db);
     
     try {
-      const analysis = await analyzer.analyzeDataPatterns(sampleData);
+      // Pass progress callback to the DataPatternAnalyzer if it supports it
+      const analysis = await analyzer.analyzeDataPatterns(sampleData, progressCallback);
       analysis.source = 'data-patterns';
+      
+      this.emitProgress(`✅ Data pattern analysis complete: ${analysis.relationships?.length || 0} patterns found`, 'pattern-complete', progressCallback);
       return analysis;
     } catch (error) {
-      console.warn('Data pattern analysis failed, falling back to schema-only:', error.message);
+      this.emitProgress(`⚠️ Data pattern analysis failed, falling back to schema-only: ${error.message}`, 'pattern-error', progressCallback);
       return { relationships: [], confidence: 'low', source: 'data-analysis-failed' };
     }
   }
@@ -229,8 +292,8 @@ class HybridRelationshipAnalyzer {
    * Combines schema analysis with data pattern analysis for enhanced confidence.
    * Schema provides relationship discovery, data patterns provide confidence scoring.
    */
-  async combineAnalysisResults(schemaAnalysis, dataPatternAnalysis) {
-    console.log('Combining schema and data pattern analysis results...');
+  async combineAnalysisResults(schemaAnalysis, dataPatternAnalysis, progressCallback = null) {
+    this.emitProgress('🔀 Combining schema and data pattern analysis results...', 'combine-start', progressCallback);
     
     const combinedRelationships = [];
     const recommendations = {
@@ -241,7 +304,16 @@ class HybridRelationshipAnalyzer {
     };
     
     // Start with schema relationships as baseline
+    this.emitProgress(`🔗 Processing ${schemaAnalysis.relationships.length} schema relationships...`, 'combine-processing', progressCallback);
+    
+    let processedRelationships = 0;
     for (const schemaRel of schemaAnalysis.relationships) {
+      processedRelationships++;
+      
+      if (processedRelationships % 10 === 0) {
+        this.emitProgress(`   📊 Processing relationship ${processedRelationships}/${schemaAnalysis.relationships.length}`, 'combine-processing', progressCallback);
+      }
+      
       let enhancedRelationship = { ...schemaRel };
       
       // Try to find matching data pattern analysis
@@ -263,14 +335,14 @@ class HybridRelationshipAnalyzer {
           reasoning: this.generateHybridReasoning(schemaRel, dataPattern)
         };
         
-        console.log(`Enhanced relationship ${schemaRel.sourceTable}.${schemaRel.sourceField} -> ${schemaRel.targetTable} with data patterns (confidence: ${enhancedRelationship.confidence.toFixed(2)})`);
+        this.emitProgress(`   ✅ Enhanced ${schemaRel.sourceTable}.${schemaRel.sourceField} → ${schemaRel.targetTable} with data patterns (${(enhancedRelationship.confidence*100).toFixed(1)}%)`, 'combine-enhanced', progressCallback);
       } else {
         // Schema-only relationship
         enhancedRelationship.confidence = this.calculateSchemaOnlyConfidence(schemaRel);
         enhancedRelationship.hybridAnalysis = false;
         enhancedRelationship.reasoning = `Schema-based relationship detection. ${this.generateSchemaReasoning(schemaRel)}`;
         
-        console.log(`Schema-only relationship ${schemaRel.sourceTable}.${schemaRel.sourceField} -> ${schemaRel.targetTable} (confidence: ${enhancedRelationship.confidence.toFixed(2)})`);
+        this.emitProgress(`   📋 Schema-only ${schemaRel.sourceTable}.${schemaRel.sourceField} → ${schemaRel.targetTable} (${(enhancedRelationship.confidence*100).toFixed(1)}%)`, 'combine-schema-only', progressCallback);
       }
       
       combinedRelationships.push(enhancedRelationship);

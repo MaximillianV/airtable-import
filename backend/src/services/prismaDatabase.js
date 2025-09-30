@@ -90,10 +90,7 @@ class PrismaDatabaseService {
    */
   async findUserByEmail(email) {
     return await this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        settings: true,
-      },
+      where: { email }
     });
   }
 
@@ -105,49 +102,11 @@ class PrismaDatabaseService {
    */
   async findUserById(userId) {
     return await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        settings: true,
-      },
+      where: { id: userId }
     });
   }
 
-  // ==========================================
-  // SETTINGS MANAGEMENT
-  // ==========================================
-
-  /**
-   * Get user settings by user ID
-   * 
-   * @param {number} userId - User ID
-   * @returns {Promise<Object|null>} Settings object or null
-   */
-  async getSettings(userId) {
-    return await this.prisma.settings.findUnique({
-      where: { userId },
-    });
-  }
-
-  /**
-   * Create or update user settings
-   * 
-   * @param {number} userId - User ID
-   * @param {Object} settingsData - Settings data to save
-   * @returns {Promise<Object>} Updated settings object
-   */
-  async saveSettings(userId, settingsData) {
-    return await this.prisma.settings.upsert({
-      where: { userId },
-      update: {
-        ...settingsData,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        ...settingsData,
-      },
-    });
-  }
+  // Settings management removed - configuration moved to environment variables
 
   // ==========================================
   // IMPORT SESSION MANAGEMENT

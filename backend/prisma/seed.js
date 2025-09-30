@@ -1,36 +1,46 @@
 /**
  * Prisma database seed script for initial data setup.
- * Updates the existing admin user to have SUPERADMIN role for full system access.
- * This ensures the default admin account has all permissions including debug mode.
+ * Creates the admin user with proper bcryptjs hash for authentication.
+ * This ensures the default admin account works with the authentication system.
  */
 
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
   try {
     console.log('🌱 Starting database seeding...');
     
-    // Update existing admin user to SUPERADMIN role
-    // This gives the default admin account full system permissions
-    const updatedAdmin = await prisma.user.update({
+    // Generate proper bcryptjs hash for admin123 password
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    console.log(`🔐 Generated password hash for: ${adminPassword}`);
+    
+    const adminUser = await prisma.user.upsert({
       where: {
         email: 'admin@example.com'
       },
-      data: {
+      update: {
+        role: 'SUPERADMIN',
+        password: hashedPassword  // Always update password with fresh hash
+      },
+      create: {
+        email: 'admin@example.com',
+        password: hashedPassword,
         role: 'SUPERADMIN'
       }
     });
     
-    console.log(`✅ Updated admin user to SUPERADMIN role: ${updatedAdmin.email}`);
+    console.log(`✅ Created/Updated admin user to SUPERADMIN role: ${adminUser.email}`);
     
-    // Verify the update was successful
-    const adminUser = await prisma.user.findUnique({
+    // Verify the admin user exists
+    const verifyAdmin = await prisma.user.findUnique({
       where: { email: 'admin@example.com' },
       select: { email: true, role: true }
     });
     
-    console.log(`🔍 Verified admin user role: ${adminUser?.role}`);
+    console.log(`🔍 Verified admin user role: ${verifyAdmin?.role}`);
     
   } catch (error) {
     console.error('❌ Seeding failed:', error);

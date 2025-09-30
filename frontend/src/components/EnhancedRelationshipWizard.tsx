@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { importAPI } from '../services/api';
+import { socketService } from '../services/socket';
 
 interface DataPattern {
   confidence: number;
@@ -42,11 +43,12 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
   onCancel
 }) => {
   // State management for wizard steps and data
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0); // Start with confirmation step
   const [loading, setLoading] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [dataPatterns, setDataPatterns] = useState<DataPattern[]>([]);
   const [userConfirmations, setUserConfirmations] = useState<Record<string, any>>({});
+  const [importConfirmed, setImportConfirmed] = useState(false);
   const [finalConfiguration, setFinalConfiguration] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,43 +67,77 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
    */
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setAnalysisLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+    // Add new logs at the beginning to show newest on top
+    setAnalysisLogs(prev => [`[${timestamp}] ${message}`, ...prev]);
   };
 
-  const analyzeDataPatterns = async () => {
+  const startFullImportWorkflow = async () => {
     setLoading(true);
     setAnalysisProgress(0);
     setAnalysisComplete(false);
     setError(null);
     setAnalysisLogs([]);
 
+    // Set up Socket.IO listener for real-time progress updates
+    let progressUnsubscribe: (() => void) | null = null;
+
     try {
-      addLog('🚀 Starting hybrid relationship analysis...');
-      addLog('🔗 Connecting to Airtable API...');
-      setAnalysisProgress(10);
+      addLog('🚀 Initializing analysis session with real-time progress...');
 
-      addLog('📋 Discovering tables with metadata...');
-      setAnalysisProgress(20);
+      // Subscribe to import-progress events for real-time backend updates
+      progressUnsubscribe = socketService.onProgressUpdate((progressData: any) => {
+        // Real backend progress updates
+        if (progressData.message) {
+          addLog(progressData.message);
+        }
+        
+        // Update progress bar based on new workflow stages
+        const progressStages: Record<string, number> = {
+          // Stage 1: Confirmation and Setup (0-5%)
+          'confirming': 2,
+          'connecting': 5,
+          
+          // Stage 2: Schema Discovery (5-15%)
+          'schema-discovery': 8,
+          'schema-analysis': 12,
+          'schema-complete': 15,
+          
+          // Stage 3: Database Creation (15-30%)
+          'creating-tables': 18,
+          'creating-enums': 22,
+          'database-ready': 30,
+          
+          // Stage 4: Data Import (30-70%) - 40% of total workflow
+          'import-starting': 32,
+          'importing-data': (progressData.importProgress || 0) * 0.38 + 32, // Scale table progress to 32-70%
+          'import-complete': 70,
+          
+          // Stage 5: Relationship Analysis (70-85%)
+          'analyzing-relationships': 72,
+          'pattern-analysis': 78,
+          'pattern-complete': 85,
+          
+          // Stage 6: Schema Enhancement (85-95%)
+          'creating-foreign-keys': 88,
+          'creating-junction-tables': 92,
+          'schema-enhanced': 95,
+          
+          // Stage 7: Completion (95-100%)
+          'finalizing': 98,
+          'completed': 100
+        };
+        
+        const newProgress = progressStages[progressData.status];
+        if (newProgress !== undefined) {
+          setAnalysisProgress(Math.min(newProgress, 100));
+        }
+      });
 
-      addLog('🔍 Analyzing schema relationships...');
-      addLog('   • Detecting multipleRecordLinks fields');
-      addLog('   • Building table ID mappings');
-      setAnalysisProgress(40);
-
-      addLog('📊 Collecting sample data for statistical analysis...');
-      addLog('   • Sampling 50 records per table');
-      setAnalysisProgress(60);
-
-      addLog('🧮 Performing data pattern analysis...');
-      addLog('   • Analyzing array lengths and uniqueness');
-      addLog('   • Cross-table validation');
-      setAnalysisProgress(75);
-
-      // Call the hybrid relationship analyzer (schema + sample data)
-      const response = await importAPI.analyzeHybridRelationships();
+      // Call the new full import workflow endpoint (create DB, import all data, analyze relationships)
+      const response = await importAPI.startFullImportWorkflow();
       
-      addLog('✅ Hybrid analysis API call completed');
-      setAnalysisProgress(90);
+      addLog('✅ API call completed, processing results...');
+      setAnalysisProgress(98);
 
       if (response.success) {
         const patterns = response.data.relationships || [];
@@ -153,6 +189,10 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
       addLog(`❌ Analysis failed: ${errorMsg}`);
       setError(`Analysis failed: ${errorMsg}`);
     } finally {
+      // Clean up Socket.IO subscription
+      if (progressUnsubscribe) {
+        progressUnsubscribe();
+      }
       setLoading(false);
     }
   };
@@ -491,6 +531,86 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
   };
 
   /**
+   * Step 0: Import confirmation step - warns user about full data import.
+   * Explains the new workflow and gets user confirmation before proceeding.
+   */
+  const renderImportConfirmationStep = () => {
+    return (
+      <div style={styles.stepContainer}>
+        <div style={styles.stepHeader}>
+          <h2>Import Confirmation - Step 0 of 3</h2>
+          <p>You are about to start the full Airtable import process. Please review the workflow below.</p>
+        </div>
+
+        <div style={styles.workflowExplanation}>
+          <h3>📋 Complete Import Workflow:</h3>
+          <div style={styles.workflowSteps}>
+            <div style={styles.workflowStep}>
+              <span style={styles.stepNumber}>1</span>
+              <div style={styles.stepContent}>
+                <strong>Schema Discovery</strong>
+                <p>Analyze Airtable structure and create PostgreSQL tables with snake_case naming</p>
+              </div>
+            </div>
+            <div style={styles.workflowStep}>
+              <span style={styles.stepNumber}>2</span>
+              <div style={styles.stepContent}>
+                <strong>Full Data Import</strong>
+                <p>Import ALL records from all tables (not just samples). Auto-create ENUMs for select fields with ≤20 options.</p>
+              </div>
+            </div>
+            <div style={styles.workflowStep}>
+              <span style={styles.stepNumber}>3</span>
+              <div style={styles.stepContent}>
+                <strong>Relationship Analysis</strong>
+                <p>Analyze imported data in PostgreSQL to detect foreign key relationships with confidence scoring</p>
+              </div>
+            </div>
+            <div style={styles.workflowStep}>
+              <span style={styles.stepNumber}>4</span>
+              <div style={styles.stepContent}>
+                <strong>Schema Enhancement</strong>
+                <p>Create foreign key constraints and junction tables based on detected relationships</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.importWarning}>
+            <h4>⚠️ Important Notes:</h4>
+            <ul>
+              <li>This will import ALL data from your Airtable base (not just samples)</li>
+              <li>The process may take several minutes for large datasets</li>
+              <li>Database tables will be created and populated before relationship analysis</li>
+              <li>You can still review and modify relationship suggestions in the next steps</li>
+            </ul>
+          </div>
+
+          <div style={styles.confirmationActions}>
+            <button
+              onClick={() => {
+                setImportConfirmed(true);
+                setCurrentStep(1);
+                // Start the full import workflow
+                startFullImportWorkflow();
+              }}
+              style={styles.primaryButton}
+              disabled={loading}
+            >
+              🚀 Start Full Import Process
+            </button>
+            <button
+              onClick={onCancel}
+              style={styles.secondaryButton}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Step 1: Analysis step with TQDM-style progress.
    */
   const renderAnalysisStep = () => {
@@ -526,7 +646,7 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
             </div>
 
             <button
-              onClick={analyzeDataPatterns}
+              onClick={startFullImportWorkflow}
               style={styles.primaryButton}
             >
               Start Data Analysis
@@ -581,7 +701,7 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
             <button
               onClick={() => {
                 setError(null);
-                analyzeDataPatterns();
+                startFullImportWorkflow();
               }}
               style={styles.primaryButton}
             >
@@ -602,6 +722,11 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
         <div style={styles.stepIndicator}>
           <div style={{
             ...styles.stepDot,
+            backgroundColor: currentStep >= 0 ? '#3b82f6' : '#e5e7eb'
+          }}>0</div>
+          <div style={styles.stepLine} />
+          <div style={{
+            ...styles.stepDot,
             backgroundColor: currentStep >= 1 ? '#3b82f6' : '#e5e7eb'
           }}>1</div>
           <div style={styles.stepLine} />
@@ -617,6 +742,7 @@ const EnhancedRelationshipWizard: React.FC<EnhancedRelationshipWizardProps> = ({
         </div>
       </div>
 
+      {currentStep === 0 && renderImportConfirmationStep()}
       {currentStep === 1 && renderAnalysisStep()}
       {currentStep === 2 && renderConfirmationStep()}
       {currentStep === 3 && renderConfigurationPreview()}
@@ -994,6 +1120,51 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500',
     textAlign: 'center' as const
+  },
+  // New styles for confirmation step
+  workflowExplanation: {
+    marginTop: '20px'
+  },
+  workflowSteps: {
+    marginBottom: '30px'
+  },
+  workflowStep: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    marginBottom: '20px',
+    padding: '15px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  },
+  stepNumber: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    marginRight: '15px',
+    flexShrink: 0
+  },
+  stepContent: {
+    flex: 1
+  },
+  importWarning: {
+    marginBottom: '30px',
+    padding: '20px',
+    backgroundColor: '#fef3c7',
+    border: '1px solid #f59e0b',
+    borderRadius: '8px'
+  },
+  confirmationActions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '15px'
   }
 };
 

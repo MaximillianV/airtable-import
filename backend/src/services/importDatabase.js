@@ -24,6 +24,55 @@ class ImportDatabaseService {
    * Ensure that a PostgreSQL database exists, creating it if necessary
    * 
    * @param {string} connectionString - Original connection string (to connect to postgres for DB creation)
+   * @param {stri  /**
+   * Get connection information for debugging
+   * 
+   * @returns {Object} Connection details
+   */
+  getConnectionInfo() {
+    return {
+      dbType: this.dbType,
+      connectionString: this.connectionString,
+      connected: !!this.connection
+    };
+  }
+
+  /**
+   * Run import database migrations (functions and utilities)
+   * This ensures required functions like analyze_relationships() are available
+   * 
+   * @returns {Promise<boolean>} True if successful
+   */
+  async runImportDatabaseMigrations() {
+    try {
+      if (this.dbType !== 'postgresql') {
+        // SQLite doesn't support custom functions in the same way
+        console.log('⏭️  Skipping migrations for SQLite database');
+        return true;
+      }
+
+      console.log('🔄 Running import database migrations...');
+      
+      const { checkImportDatabaseReady } = require('../../import-db-migration-runner');
+      const isReady = await checkImportDatabaseReady(this);
+      
+      if (isReady) {
+        console.log('✅ Import database migrations completed successfully');
+        return true;
+      } else {
+        console.error('❌ Import database migrations failed');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error running import database migrations:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure that a PostgreSQL database exists, creating it if necessary
+   * 
+   * @param {string} connectionString - Original connection string (to connect to postgres for DB creation)
    * @param {string} databaseName - Name of database to create
    * @returns {Promise<void>}
    */
@@ -263,6 +312,9 @@ class ImportDatabaseService {
     
     console.log(`✅ Connected to PostgreSQL database: ${targetDatabaseName}`);
     
+    // Apply import database migrations (functions like analyze_relationships)
+    await this.runImportDatabaseMigrations();
+    
     return {
       success: true,
       dbType: 'postgresql',
@@ -388,13 +440,13 @@ class ImportDatabaseService {
         console.log(`📋 SQLite table '${tableName}' exists: ${exists}`);
         return exists;
       } else if (this.dbType === 'postgresql') {
-        // PostgreSQL query to check table existence
+        // PostgreSQL query to check table existence in data schema
         const result = await this.connection.query(
-          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'data' AND table_name = $1",
           [tableName]
         );
         const exists = result.rows.length > 0;
-        console.log(`📋 PostgreSQL table '${tableName}' exists: ${exists} (found ${result.rows.length} matches)`);
+        console.log(`📋 PostgreSQL table '${tableName}' exists in data schema: ${exists} (found ${result.rows.length} matches)`);
         return exists;
       }
       return false;
@@ -411,7 +463,8 @@ class ImportDatabaseService {
    */
   async dropTableIfExists(tableName) {
     try {
-      const dropSQL = `DROP TABLE IF EXISTS "${tableName}"`;
+      const tableReference = this.dbType === 'postgresql' ? `"data"."${tableName}"` : `"${tableName}"`;
+      const dropSQL = `DROP TABLE IF EXISTS ${tableReference}`;
       await this.executeSQL(dropSQL);
       console.log(`🗑️  Dropped existing table "${tableName}" if it existed`);
     } catch (error) {
@@ -544,7 +597,7 @@ class ImportDatabaseService {
       const query = `
         SELECT data_type, udt_name 
         FROM information_schema.columns 
-        WHERE table_name = $1 AND column_name = $2
+        WHERE table_schema = 'data' AND table_name = $1 AND column_name = $2
       `;
       
       const result = await this.executeSQL(query, [tableName, columnName]);
@@ -713,7 +766,7 @@ class ImportDatabaseService {
 
     // Build the CREATE TABLE statement with airtable_id for sync functionality
     if (this.dbType === 'postgresql') {
-      return `CREATE TABLE IF NOT EXISTS "${tableName}" (
+      return `CREATE TABLE IF NOT EXISTS "data"."${tableName}" (
         id SERIAL PRIMARY KEY,
         airtable_id VARCHAR(255) UNIQUE NOT NULL,
         ${columnDefinitions},
@@ -822,7 +875,7 @@ class ImportDatabaseService {
               const updateSet = fields.map(f => `"${f}" = EXCLUDED."${f}"`).join(', ');
               
               // Use RETURNING to detect if it was INSERT or UPDATE
-              insertSQL = `INSERT INTO "${tableName}" (airtable_id, ${fieldNames}) 
+              insertSQL = `INSERT INTO "data"."${tableName}" (airtable_id, ${fieldNames}) 
                           VALUES ($1, ${placeholders}) 
                           ON CONFLICT (airtable_id) DO UPDATE SET ${updateSet}
                           RETURNING (xmax = 0) AS was_inserted`;
@@ -862,7 +915,8 @@ class ImportDatabaseService {
                 : fields.map(() => '?').join(', ');
 
               const fieldNames = fields.map(f => `"${f}"`).join(', ');
-              insertSQL = `INSERT INTO "${tableName}" (airtable_id, ${fieldNames}) VALUES (${this.dbType === 'postgresql' ? '$1' : '?'}, ${placeholders})`;
+              const tableReference = this.dbType === 'postgresql' ? `"data"."${tableName}"` : `"${tableName}"`;
+              insertSQL = `INSERT INTO ${tableReference} (airtable_id, ${fieldNames}) VALUES (${this.dbType === 'postgresql' ? '$1' : '?'}, ${placeholders})`;
               queryParams = [record.id, ...processedValues];
               
               await this.executeSQL(insertSQL, queryParams);

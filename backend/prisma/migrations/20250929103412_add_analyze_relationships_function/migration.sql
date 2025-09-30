@@ -1,16 +1,10 @@
--- Create analyze_relationships function for cardinality analysis
+-- Create analyze_relationships function for cardinality analysis in data schema
 -- Purpose: Analyze relationship cardinality (one-to-one, one-to-many, many-to-one, many-to-many)
+-- Note: This function is explicitly created in the 'data' schema and accesses tables within it.
 
-CREATE OR REPLACE FUNCTION analyze_relationships(relations jsonb)
-RETURNS TABLE (
-    from_table text,
-    from_field text,
-    to_table text,
-    relationship_type text,
-    max_links_from bigint,
-    max_links_to bigint,
-    error_message text
-)
+-- FIX: The RETURNS TABLE clause is now on a single line to prevent parsing errors.
+CREATE OR REPLACE FUNCTION data.analyze_relationships(relations jsonb)
+RETURNS TABLE(from_table text, from_field text, to_table text, relationship_type text, max_links_from bigint, max_links_to bigint, error_message text)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -42,18 +36,18 @@ BEGIN
         BEGIN
             -- Build the queries based on whether the field is an array or a standard foreign key
             IF v_field_type = 'array' THEN
-                -- Query for array type
-                sql_from_side := format('SELECT COALESCE(MAX(cardinality(%I)), 0) FROM %I WHERE %I IS NOT NULL', v_from_field, v_from_table, v_from_field);
-                sql_to_side   := format('SELECT COALESCE(MAX(ref_count), 0) FROM (SELECT COUNT(*) AS ref_count FROM %I, unnest(%I) AS ref_id WHERE %I IS NOT NULL GROUP BY ref_id) AS counts', v_from_table, v_from_field, v_from_field);
+                -- Query for array type, explicitly targeting the 'data' schema
+                sql_from_side := format('SELECT COALESCE(MAX(cardinality(%I)), 0) FROM data.%I WHERE %I IS NOT NULL', v_from_field, v_from_table, v_from_field);
+                sql_to_side   := format('SELECT COALESCE(MAX(ref_count), 0) FROM (SELECT COUNT(*) AS ref_count FROM data.%I, unnest(%I) AS ref_id WHERE %I IS NOT NULL GROUP BY ref_id) AS counts', v_from_table, v_from_field, v_from_field);
 
                 EXECUTE sql_from_side INTO max_from;
                 EXECUTE sql_to_side INTO max_to;
 
             ELSE -- Assume it's a scalar (standard) foreign key
-                -- For a standard key, a 'from' row can only link to one 'to' row. So the "from" side is always 1.
+                -- For a standard key, a 'from' row can only link to one 'to' row.
                 max_from := 1;
-                -- The "to" side query counts how many times each key is used in the 'from' table.
-                sql_to_side := format('SELECT COALESCE(MAX(ref_count), 0) FROM (SELECT COUNT(*) AS ref_count FROM %I WHERE %I IS NOT NULL GROUP BY %I) AS counts', v_from_table, v_from_field, v_from_field);
+                -- The "to" side query counts references, explicitly targeting the 'data' schema
+                sql_to_side := format('SELECT COALESCE(MAX(ref_count), 0) FROM (SELECT COUNT(*) AS ref_count FROM data.%I WHERE %I IS NOT NULL GROUP BY %I) AS counts', v_from_table, v_from_field, v_from_field);
 
                 EXECUTE sql_to_side INTO max_to;
             END IF;
@@ -65,10 +59,10 @@ BEGIN
             max_links_from    := COALESCE(max_from, 0);
             max_links_to      := COALESCE(max_to, 0);
             relationship_type := CONCAT(
-                                    CASE WHEN COALESCE(max_from, 0) > 1 THEN 'many' ELSE 'one' END,
-                                    '-to-',
-                                    CASE WHEN COALESCE(max_to, 0) > 1 THEN 'many' ELSE 'one' END
-                                );
+                                     CASE WHEN COALESCE(max_from, 0) > 1 THEN 'many' ELSE 'one' END,
+                                     '-to-',
+                                     CASE WHEN COALESCE(max_to, 0) > 1 THEN 'many' ELSE 'one' END
+                                 );
             error_message     := NULL;
 
         EXCEPTION WHEN others THEN
@@ -88,5 +82,5 @@ BEGIN
 END;
 $$;
 
--- Add function comment
-COMMENT ON FUNCTION analyze_relationships(jsonb) IS 'Analyzes relationship cardinality between tables using array or scalar fields. Returns one-to-one, one-to-many, many-to-one, or many-to-many relationship types with actual cardinality counts.';
+-- Add function comment, explicitly targeting the function in the 'data' schema
+COMMENT ON FUNCTION data.analyze_relationships(jsonb) IS 'Analyzes relationship cardinality between tables using array or scalar fields in the data schema. Returns one-to-one, one-to-many, many-to-one, or many-to-many relationship types with actual cardinality counts.';

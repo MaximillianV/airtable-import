@@ -290,6 +290,48 @@ v2_debug_monitor() {
         echo "❌ Backend process not found for monitoring"
     fi
 }
+
+# Main case statement
+case "$1" in
+    "list")
+        list_logs
+        ;;
+    "backend")
+        show_log "backend"
+        ;;
+    "frontend")
+        show_log "frontend"
+        ;;
+    "startup")
+        show_log "startup"
+        ;;
+    "tail-backend")
+        tail_log "backend"
+        ;;
+    "tail-frontend")
+        tail_log "frontend"
+        ;;
+    "tail-startup")
+        tail_log "startup"
+        ;;
+    "clean")
+        clean_logs
+        ;;
+    "live")
+        live_monitoring
+        ;;
+    "processes")
+        monitor_processes
+        ;;
+    "status")
+        show_status
+        ;;
+    "api-test")
+        test_api_endpoints
+        ;;
+    "v2-debug")
+        v2_debug_monitoring
+        ;;
     "help"|"")
         show_help
         ;;

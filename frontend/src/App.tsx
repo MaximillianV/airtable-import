@@ -6,6 +6,7 @@ import Register from './components/Register';
 import AdminLayout from './components/AdminLayout';
 import Dashboard from './components/Dashboard';
 import Import from './components/Import';
+import V2Import from './components/V2Import';
 import SessionDetail from './components/SessionDetail';
 import AdminSettings from './components/admin/settings/AdminSettings';
 import Users from './components/admin/users/Users';
@@ -41,6 +42,7 @@ function App() {
               
               {/* Import functionality */}
               <Route path="import" element={<Import />} />
+              <Route path="v2-import" element={<V2Import />} />
               <Route path="sessions/:sessionId" element={<SessionDetail />} />
               
               {/* ERD Schema Analyzer */}
